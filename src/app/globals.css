@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
+  --background: #edf0f5;
   --foreground: #0f172a;
 }
 
@@ -27,28 +27,18 @@ body {
   }
 }
 
-/* Moving marquee animation */
-@keyframes marquee {
-  0% {
-    transform: translateX(0%);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
-
 /* Custom sleek scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #e2e8f0;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #94a3b8;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #64748b;
 }
