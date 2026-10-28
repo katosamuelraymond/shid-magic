@@ -23,6 +23,13 @@ export interface Seller {
   totalListings: number;
   totalListingFeesPaid: number;
   joinedDate: string;
+  // Concierge Subscription & Visibility Controls:
+  status: 'active' | 'suspended';
+  packagePlan: ListingPlan;
+  subscriptionExpiresAt: string; // ISO date string
+  photographyService?: boolean;
+  notes?: string;
+  suspendedReason?: string;
 }
 
 export interface Product {
@@ -43,7 +50,8 @@ export interface Product {
   sellerVerified: boolean;
   sellerBadge: string;
   isFeatured: boolean;
-  status: 'active' | 'sold' | 'inactive';
+  isPinnedTop?: boolean; // When true, goods are pinned to top spotlight banner / adverts
+  status: 'active' | 'sold' | 'inactive' | 'suspended';
   viewsCount: number;
   whatsappClicks: number;
   callClicks: number;
@@ -69,7 +77,11 @@ export interface OrderInquiry {
 
 export interface MarketplaceStats {
   totalActiveListings: number;
+  totalSuspendedListings: number;
   totalSellers: number;
+  activeSellersCount: number;
+  suspendedSellersCount: number;
+  expiredSellersCount: number;
   totalListingRevenue: number;
   totalWhatsappLeads: number;
   totalViews: number;

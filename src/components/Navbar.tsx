@@ -65,16 +65,9 @@ export default function Navbar() {
         <div className="hidden sm:flex items-center gap-3">
           <Link
             href="/sell"
-            className="text-xs font-bold text-slate-700 hover:text-emerald-700 transition"
+            className="rounded-lg bg-emerald-800 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-900 transition shadow-xs"
           >
             List Your Goods
-          </Link>
-
-          <Link
-            href="/admin"
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:border-emerald-700 hover:text-emerald-700 transition"
-          >
-            Admin Portal
           </Link>
         </div>
 
@@ -110,16 +103,9 @@ export default function Navbar() {
             <Link
               href="/sell"
               onClick={() => setMobileMenuOpen(false)}
-              className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800"
+              className="rounded-lg bg-emerald-800 text-center px-3 py-2 text-xs font-bold text-white"
             >
               List Your Goods (From UGX 15,000)
-            </Link>
-            <Link
-              href="/admin"
-              onClick={() => setMobileMenuOpen(false)}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-800"
-            >
-              Admin Management Portal
             </Link>
           </div>
         </div>

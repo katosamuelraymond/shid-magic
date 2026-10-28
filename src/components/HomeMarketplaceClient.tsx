@@ -45,12 +45,14 @@ export default function HomeMarketplaceClient({ products }: HomeMarketplaceClien
               >
                 View Listing Packages (from UGX 15,000)
               </Link>
-              <Link
-                href="/admin"
+              <a
+                href="https://wa.me/256772123456?text=Hello%20ShidMagic%20Admin,%20I%20have%20stock%20I%20want%20to%20sell%20in%20Kampala"
+                target="_blank"
+                rel="noreferrer"
                 className="inline-block rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
               >
-                Admin Login
-              </Link>
+                Chat with Concierge Admin
+              </a>
             </div>
           </div>
         </section>

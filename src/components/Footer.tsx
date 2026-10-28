@@ -88,7 +88,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h5 className="text-[11px] font-bold text-slate-900 uppercase tracking-wider mb-2">Merchants & Admin</h5>
+            <h5 className="text-[11px] font-bold text-slate-900 uppercase tracking-wider mb-2">For Merchants</h5>
             <ul className="space-y-1.5 text-xs text-slate-500">
               <li>
                 <Link href="/sell" className="hover:text-emerald-700 transition">
@@ -101,9 +101,14 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/admin" className="hover:text-emerald-700 transition">
-                  Admin Dashboard
-                </Link>
+                <a
+                  href="https://wa.me/256772123456?text=Hello%20ShidMagic%20Admin,%20I%20want%20to%20list%20my%20products%20on%20your%20marketplace"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-emerald-700 transition"
+                >
+                  Contact Concierge Desk
+                </a>
               </li>
             </ul>
           </div>

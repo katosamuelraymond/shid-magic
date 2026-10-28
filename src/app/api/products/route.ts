@@ -8,6 +8,8 @@ export async function GET(request: Request) {
     const search = searchParams.get('search') || undefined;
     const condition = searchParams.get('condition') || undefined;
     const featuredOnly = searchParams.get('featured') === 'true';
+    const pinnedOnly = searchParams.get('pinned') === 'true';
+    const includeHidden = searchParams.get('includeHidden') === 'true';
     const sellerId = searchParams.get('sellerId') || undefined;
     const sortBy = (searchParams.get('sortBy') as any) || undefined;
 
@@ -16,6 +18,8 @@ export async function GET(request: Request) {
       search,
       condition,
       featuredOnly,
+      pinnedOnly,
+      includeHidden,
       sellerId,
       sortBy,
     });
@@ -54,6 +58,7 @@ export async function POST(request: Request) {
       sellerVerified: body.sellerVerified !== undefined ? body.sellerVerified : true,
       sellerBadge: body.sellerBadge || 'Physical Shop Verified',
       isFeatured: Boolean(body.isFeatured),
+      isPinnedTop: Boolean(body.isPinnedTop),
       status: body.status || 'active',
       listingPlan: body.listingPlan || 'Basic',
       listingFee: Number(body.listingFee || 15),

@@ -11,7 +11,12 @@
       "verificationBadge": "Physical Shop Inspected & Verified",
       "totalListings": 4,
       "totalListingFeesPaid": 120000,
-      "joinedDate": "2026-06-12"
+      "joinedDate": "2026-06-12",
+      "status": "active",
+      "packagePlan": "VIP",
+      "subscriptionExpiresAt": "2026-11-28T00:00:00.000Z",
+      "photographyService": true,
+      "notes": "Paid UGX 35k VIP monthly. Shop visited and verified by admin."
     },
     {
       "id": "seller-ug-2",
@@ -24,7 +29,12 @@
       "verificationBadge": "Verified Hardware Merchant",
       "totalListings": 3,
       "totalListingFeesPaid": 90000,
-      "joinedDate": "2026-07-04"
+      "joinedDate": "2026-07-04",
+      "status": "active",
+      "packagePlan": "Featured",
+      "subscriptionExpiresAt": "2026-11-25T00:00:00.000Z",
+      "photographyService": false,
+      "notes": "Hardware store, Nakasero. Direct WhatsApp verified."
     },
     {
       "id": "seller-ug-3",
@@ -37,7 +47,12 @@
       "verificationBadge": "Authorized Retailer",
       "totalListings": 3,
       "totalListingFeesPaid": 105000,
-      "joinedDate": "2026-08-19"
+      "joinedDate": "2026-08-19",
+      "status": "active",
+      "packagePlan": "VIP",
+      "subscriptionExpiresAt": "2026-12-01T00:00:00.000Z",
+      "photographyService": true,
+      "notes": "Acacia Mall retail shop. High volume WhatsApp seller."
     },
     {
       "id": "seller-ug-4",
@@ -50,7 +65,12 @@
       "verificationBadge": "Verified Agribusiness Partner",
       "totalListings": 2,
       "totalListingFeesPaid": 70000,
-      "joinedDate": "2026-09-01"
+      "joinedDate": "2026-09-01",
+      "status": "active",
+      "packagePlan": "Featured",
+      "subscriptionExpiresAt": "2026-10-31T00:00:00.000Z",
+      "photographyService": true,
+      "notes": "Farm tech distributor in Ntinda. Subscription expiring in 3 days."
     }
   ],
   "products": [
@@ -151,7 +171,7 @@
       "sellerBadge": "Authorized Retailer",
       "isFeatured": true,
       "status": "active",
-      "viewsCount": 840,
+      "viewsCount": 1172,
       "whatsappClicks": 95,
       "callClicks": 41,
       "listingPlan": "VIP",

@@ -24,6 +24,11 @@ const INITIAL_SELLERS: Seller[] = [
     totalListings: 4,
     totalListingFeesPaid: 120000,
     joinedDate: '2026-06-12',
+    status: 'active',
+    packagePlan: 'VIP',
+    subscriptionExpiresAt: '2026-11-28T00:00:00.000Z',
+    photographyService: true,
+    notes: 'Paid UGX 35k VIP monthly. Shop visited and verified by admin.',
   },
   {
     id: 'seller-ug-2',
@@ -37,6 +42,11 @@ const INITIAL_SELLERS: Seller[] = [
     totalListings: 3,
     totalListingFeesPaid: 90000,
     joinedDate: '2026-07-04',
+    status: 'active',
+    packagePlan: 'Featured',
+    subscriptionExpiresAt: '2026-11-25T00:00:00.000Z',
+    photographyService: false,
+    notes: 'Hardware store, Nakasero. Direct WhatsApp verified.',
   },
   {
     id: 'seller-ug-3',
@@ -50,6 +60,11 @@ const INITIAL_SELLERS: Seller[] = [
     totalListings: 3,
     totalListingFeesPaid: 105000,
     joinedDate: '2026-08-19',
+    status: 'active',
+    packagePlan: 'VIP',
+    subscriptionExpiresAt: '2026-12-01T00:00:00.000Z',
+    photographyService: true,
+    notes: 'Acacia Mall retail shop. High volume WhatsApp seller.',
   },
   {
     id: 'seller-ug-4',
@@ -63,6 +78,11 @@ const INITIAL_SELLERS: Seller[] = [
     totalListings: 2,
     totalListingFeesPaid: 70000,
     joinedDate: '2026-09-01',
+    status: 'active',
+    packagePlan: 'Featured',
+    subscriptionExpiresAt: '2026-10-31T00:00:00.000Z',
+    photographyService: true,
+    notes: 'Farm tech distributor in Ntinda. Subscription expiring soon.',
   },
 ];
 
@@ -367,12 +387,24 @@ export function getAllProducts(options?: {
   category?: string;
   search?: string;
   featuredOnly?: boolean;
+  pinnedOnly?: boolean;
+  includeHidden?: boolean;
   condition?: string;
   sellerId?: string;
   sortBy?: 'newest' | 'price-low' | 'price-high' | 'popular';
 }): Product[] {
   const db = ensureDataFile();
   let list = [...db.products];
+
+  // For public client requests, filter out suspended/hidden goods and suspended sellers
+  if (!options?.includeHidden) {
+    const suspendedSellerIds = new Set(
+      db.sellers.filter((s) => s.status === 'suspended').map((s) => s.id)
+    );
+    list = list.filter(
+      (p) => p.status === 'active' && !suspendedSellerIds.has(p.sellerId)
+    );
+  }
 
   if (options?.category && options.category !== 'All') {
     list = list.filter((p) => p.category.toLowerCase() === options.category!.toLowerCase());
@@ -388,6 +420,10 @@ export function getAllProducts(options?: {
 
   if (options?.featuredOnly) {
     list = list.filter((p) => p.isFeatured && p.status === 'active');
+  }
+
+  if (options?.pinnedOnly) {
+    list = list.filter((p) => p.isPinnedTop);
   }
 
   if (options?.search) {
@@ -409,7 +445,12 @@ export function getAllProducts(options?: {
   } else if (options?.sortBy === 'popular') {
     list.sort((a, b) => (b.viewsCount + b.whatsappClicks * 3) - (a.viewsCount + a.whatsappClicks * 3));
   } else {
-    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Sort pinned top adverts first, then by date
+    list.sort((a, b) => {
+      if (a.isPinnedTop && !b.isPinnedTop) return -1;
+      if (!a.isPinnedTop && b.isPinnedTop) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
   }
 
   return list;
@@ -500,8 +541,14 @@ export function getSellerById(id: string): Seller | null {
 export function createSeller(input: Omit<Seller, 'id' | 'totalListings' | 'totalListingFeesPaid' | 'joinedDate'>): Seller {
   const db = ensureDataFile();
   const id = 'seller-ug-' + Date.now();
+  const defaultExpiry = new Date();
+  defaultExpiry.setDate(defaultExpiry.getDate() + 30);
+
   const newSeller: Seller = {
     ...input,
+    status: input.status || 'active',
+    packagePlan: input.packagePlan || 'Basic',
+    subscriptionExpiresAt: input.subscriptionExpiresAt || defaultExpiry.toISOString(),
     id,
     totalListings: 0,
     totalListingFeesPaid: 0,
@@ -521,6 +568,82 @@ export function updateSeller(id: string, updates: Partial<Seller>): Seller | nul
   db.sellers[idx] = { ...db.sellers[idx], ...updates };
   saveData(db);
   return db.sellers[idx];
+}
+
+/**
+ * 1-Click Action: Suspend or Reactivate a merchant.
+ * Scraps off all the client's products from public view without deleting their data,
+ * or restores them when payment is received.
+ */
+export function toggleSellerSuspension(sellerId: string, suspend: boolean, reason?: string): { seller: Seller | null; affectedProducts: number } {
+  const db = ensureDataFile();
+  const seller = db.sellers.find((s) => s.id === sellerId);
+  if (!seller) return { seller: null, affectedProducts: 0 };
+
+  seller.status = suspend ? 'suspended' : 'active';
+  if (reason) seller.suspendedReason = reason;
+
+  let affectedCount = 0;
+  db.products.forEach((p) => {
+    if (p.sellerId === sellerId) {
+      p.status = suspend ? 'suspended' : 'active';
+      affectedCount++;
+    }
+  });
+
+  saveData(db);
+  return { seller, affectedProducts: affectedCount };
+}
+
+/**
+ * 1-Click Action: Renew a client's subscription period by X days (default 30)
+ * Records listing fee payment and automatically brings all their products back online.
+ */
+export function renewSellerSubscription(sellerId: string, days: number = 30, feePaid: number = 0): Seller | null {
+  const db = ensureDataFile();
+  const seller = db.sellers.find((s) => s.id === sellerId);
+  if (!seller) return null;
+
+  seller.status = 'active';
+  const now = new Date();
+  const currentExp = new Date(seller.subscriptionExpiresAt || now);
+  const baseDate = currentExp.getTime() > now.getTime() ? currentExp : now;
+  baseDate.setDate(baseDate.getDate() + days);
+  seller.subscriptionExpiresAt = baseDate.toISOString();
+
+  if (feePaid > 0) {
+    seller.totalListingFeesPaid += feePaid;
+  }
+
+  // Reactivate all products
+  db.products.forEach((p) => {
+    if (p.sellerId === sellerId && p.status === 'suspended') {
+      p.status = 'active';
+    }
+  });
+
+  saveData(db);
+  return seller;
+}
+
+export function toggleProductPinTop(productId: string, isPinnedTop: boolean): Product | null {
+  const db = ensureDataFile();
+  const prod = db.products.find((p) => p.id === productId);
+  if (!prod) return null;
+  prod.isPinnedTop = isPinnedTop;
+  saveData(db);
+  return prod;
+}
+
+export function deleteSeller(sellerId: string): boolean {
+  const db = ensureDataFile();
+  const idx = db.sellers.findIndex((s) => s.id === sellerId);
+  if (idx === -1) return false;
+
+  db.sellers.splice(idx, 1);
+  db.products = db.products.filter((p) => p.sellerId !== sellerId);
+  saveData(db);
+  return true;
 }
 
 export function createOrderInquiry(input: Omit<OrderInquiry, 'id' | 'status' | 'createdAt'>): OrderInquiry {
@@ -555,13 +678,24 @@ export function updateOrderStatus(id: string, status: OrderInquiry['status']): O
 export function getMarketplaceStats(): MarketplaceStats {
   const db = ensureDataFile();
   const activeProducts = db.products.filter((p) => p.status === 'active');
-  const totalRevenue = db.products.reduce((acc, p) => acc + (p.listingFee || 0), 0);
+  const suspendedProducts = db.products.filter((p) => p.status === 'suspended');
+  const totalRevenue = db.products.reduce((acc, p) => acc + (p.listingFee || 0), 0) +
+    db.sellers.reduce((acc, s) => acc + (s.totalListingFeesPaid || 0), 0);
   const totalLeads = db.products.reduce((acc, p) => acc + p.whatsappClicks + p.callClicks, 0);
   const totalViews = db.products.reduce((acc, p) => acc + p.viewsCount, 0);
 
+  const now = new Date().getTime();
+  const activeSellers = db.sellers.filter((s) => s.status === 'active');
+  const suspendedSellers = db.sellers.filter((s) => s.status === 'suspended');
+  const expiredSellers = db.sellers.filter((s) => new Date(s.subscriptionExpiresAt).getTime() <= now);
+
   return {
     totalActiveListings: activeProducts.length,
+    totalSuspendedListings: suspendedProducts.length,
     totalSellers: db.sellers.length,
+    activeSellersCount: activeSellers.length,
+    suspendedSellersCount: suspendedSellers.length,
+    expiredSellersCount: expiredSellers.length,
     totalListingRevenue: totalRevenue,
     totalWhatsappLeads: totalLeads,
     totalViews: totalViews,
