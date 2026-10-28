@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { Product } from '@/lib/types';
 import { formatPrice, buildWhatsAppLink } from '@/lib/utils';
 import FlyerModal from './FlyerModal';
@@ -144,8 +144,9 @@ export default function ProductCard({ product }: ProductCardProps) {
               )}
             </div>
 
-            <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded" title="Total Buyer Views">
-              👁️ {product.viewsCount || 0}
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60" title="Total Buyer Views">
+              <Eye className="h-3 w-3 text-emerald-700 flex-shrink-0" />
+              <span>{product.viewsCount || 0}</span>
             </span>
           </div>
 

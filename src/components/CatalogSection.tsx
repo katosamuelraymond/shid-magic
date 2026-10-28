@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { Search } from 'lucide-react';
 import { Product, Category } from '@/lib/types';
 import ProductCard from './ProductCard';
 import { formatPrice } from '@/lib/utils';
@@ -146,18 +147,19 @@ export default function CatalogSection({
 
   return (
     <div className="space-y-4">
-      {/* STICKY Filter Control Bar (Stays docked at top when scrolling!) */}
-      <div className="sticky top-[53px] z-30 rounded-xl border border-slate-200/90 bg-white/95 backdrop-blur-sm p-3 shadow-md space-y-2.5">
-        {/* Row 1: Search input + Category Dropdown + Sort */}
+      {/* SINGLE AUTHORITATIVE STICKY Search & Filter Bar */}
+      <div className="sticky top-[78px] z-30 rounded-xl border border-slate-300 bg-white p-3 shadow-md space-y-2.5 transition">
+        {/* Row 1: Unified Search input + Category Dropdown + Sort */}
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
           {/* Search Box (6 cols) */}
           <div className="sm:col-span-6 relative">
+            <Search className="h-4 w-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search solar, booster pump, Starlink, phones, locations..."
+              placeholder="Search solar generators, booster pumps, Starlink, iPhones, Kampala shops..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-slate-50 py-2 pl-3 pr-8 text-xs text-slate-900 placeholder-slate-400 focus:border-emerald-700 focus:bg-white focus:outline-none"
+              className="w-full rounded-lg border border-slate-300 bg-slate-50 py-2 pl-9 pr-8 text-xs text-slate-900 placeholder-slate-400 focus:border-emerald-700 focus:bg-white focus:outline-none shadow-2xs font-medium"
             />
             {searchQuery && (
               <button

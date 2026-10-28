@@ -254,12 +254,13 @@ export default function ProductDetailClient({
                   {product.title}
                 </h1>
                 {product.problemSolved && (
-                  <div className="mt-2.5 rounded-xl border border-emerald-200 bg-emerald-50/70 p-2.5 flex items-start gap-2 text-xs text-emerald-900">
-                    <span className="text-base flex-shrink-0">💡</span>
-                    <div>
-                      <span className="font-bold text-[11px] uppercase tracking-wide text-emerald-700 block">Problem Solved:</span>
-                      <span className="leading-snug">{product.problemSolved}</span>
-                    </div>
+                  <div className="mt-2.5 rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-950">
+                    <span className="inline-block rounded bg-emerald-800 text-white px-2 py-0.5 text-[9px] font-black uppercase tracking-wider mb-1">
+                      Problem Solved in Uganda
+                    </span>
+                    <p className="font-semibold text-emerald-900 leading-snug">
+                      {product.problemSolved}
+                    </p>
                   </div>
                 )}
               </div>
