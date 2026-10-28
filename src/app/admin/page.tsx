@@ -38,7 +38,7 @@ export default function AdminPage() {
 
   // Upload Form State
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<Category>('Phones & Tablets');
+  const [category, setCategory] = useState<Category>('Solar & Power Backup');
   const [condition, setCondition] = useState<ProductCondition>('Brand New');
   const [price, setPrice] = useState('');
   const [originalPrice, setOriginalPrice] = useState('');
@@ -632,12 +632,11 @@ export default function AdminPage() {
                       onChange={(e) => setCategory(e.target.value as Category)}
                       className="w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-emerald-500 focus:outline-none"
                     >
-                      <option value="Phones & Tablets">Phones & Tablets</option>
-                      <option value="Electronics & Laptops">Electronics & Laptops</option>
-                      <option value="Fashion & Shoes">Fashion & Shoes</option>
-                      <option value="Home & Furniture">Home & Furniture</option>
-                      <option value="Beauty & Fragrances">Beauty & Fragrances</option>
-                      <option value="Kids & Toys">Kids & Toys</option>
+                      <option value="Solar & Power Backup">Solar & Power Backup</option>
+                      <option value="Water & Home Tech">Water & Home Tech</option>
+                      <option value="Phones & Computers">Phones & Computers</option>
+                      <option value="Agri & Food Processing">Agri & Food Processing</option>
+                      <option value="Fashion & Beauty">Fashion & Beauty</option>
                       <option value="Vehicles & Auto">Vehicles & Auto</option>
                     </select>
                   </div>
