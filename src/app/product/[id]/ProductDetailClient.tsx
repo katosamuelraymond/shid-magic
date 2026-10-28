@@ -41,6 +41,31 @@ export default function ProductDetailClient({
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [flyerOpen, setFlyerOpen] = useState(false);
   const [orderOpen, setOrderOpen] = useState(false);
+  const [currentViews, setCurrentViews] = useState(product.viewsCount || 0);
+
+  // Client-side real view tracking
+  React.useEffect(() => {
+    try {
+      const sessionKey = `shid_viewed_${product.id}`;
+      if (!sessionStorage.getItem(sessionKey)) {
+        sessionStorage.setItem(sessionKey, '1');
+        fetch('/api/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId: product.id, eventType: 'view' }),
+        })
+          .then((r) => r.json())
+          .then((res) => {
+            if (res.success) {
+              setCurrentViews((prev) => prev + 1);
+            }
+          })
+          .catch(() => {});
+      }
+    } catch (e) {
+      // Ignore in non-browser env
+    }
+  }, [product.id]);
 
   const discountPercent = product.originalPrice && product.originalPrice > product.price
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
@@ -93,9 +118,9 @@ export default function ProductDetailClient({
             <ArrowLeft className="h-4 w-4" />
             <span>Back to All Goods</span>
           </Link>
-          <div className="flex items-center gap-1.5 text-slate-500">
-            <Eye className="h-3.5 w-3.5 text-slate-400" />
-            <span>{product.viewsCount + 1} views</span>
+          <div className="flex items-center gap-1.5 rounded-full bg-white border border-slate-200 px-3 py-1 text-slate-700 shadow-2xs font-semibold">
+            <Eye className="h-3.5 w-3.5 text-emerald-700" />
+            <span>{currentViews} Real Buyer Views</span>
           </div>
         </div>
 
@@ -254,6 +279,28 @@ export default function ProductDetailClient({
                 </span>
               </div>
 
+              {/* Live Views & Buyer Interest Box */}
+              <div className="rounded-xl border border-slate-200 bg-white p-3 flex items-center justify-between text-xs shadow-2xs">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-800">
+                    <Eye className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <span className="font-black text-slate-900 block leading-tight">
+                      {currentViews} Real Views
+                    </span>
+                    <span className="text-[10px] text-slate-500">Tracked in real-time</span>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <span className="font-black text-emerald-800 text-[11px] block leading-tight">
+                    {product.whatsappClicks || 0} Buyer Inquiries
+                  </span>
+                  <span className="text-[10px] text-slate-400">Direct WhatsApp leads</span>
+                </div>
+              </div>
+
               {/* Action Buttons */}
               <div className="space-y-2">
                 {/* 1. Direct WhatsApp */}
@@ -292,9 +339,13 @@ export default function ProductDetailClient({
                       {product.sellerName.charAt(0)}
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-slate-900">
+                      <Link
+                        href={`/merchant/${product.sellerId}`}
+                        className="text-xs font-bold text-slate-900 hover:text-emerald-700 hover:underline block"
+                        title="View Merchant Profile & All Listings"
+                      >
                         {product.sellerName}
-                      </h4>
+                      </Link>
                       <p className="text-[10px] text-slate-500 font-mono">
                         {product.sellerPhone}
                       </p>

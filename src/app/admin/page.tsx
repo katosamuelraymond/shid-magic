@@ -198,11 +198,22 @@ export default function AdminPage() {
     }
   };
 
-  // 1-Click Action: Send WhatsApp Payment Reminder
+  // 1-Click Action: Send WhatsApp Payment Reminder with Live Stats Link
   const handleSendPaymentReminder = (seller: any) => {
     const amountDue = seller.packagePlan === 'VIP' ? 'UGX 35,000 (VIP Top Banner)' : seller.packagePlan === 'Featured' ? 'UGX 25,000 (Featured)' : 'UGX 15,000 (Basic)';
     const phone = (seller.whatsappNumber || seller.phone).replace(/[^0-9]/g, '');
-    const message = `Hello ${seller.name} (${seller.businessName || 'ShidMagic Merchant'}),\n\nYour product listing subscription period on ShidMagic Uganda has expired.\n\nTo keep your goods online and at the top for buyers in Kampala, please send your renewal payment of ${amountDue} via MTN MoMo / Airtel Money to 0772123456 (Kato Samuel Raymond).\n\nReply here with your confirmation SMS once paid so we keep your products active. Thank you!`;
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://shidmagic.com';
+    const statsUrl = `${origin}/merchant/${seller.id}`;
+    const message = `Hello ${seller.name} (${seller.businessName || 'ShidMagic Merchant'}),\n\nYour product listing subscription period on ShidMagic Uganda has expired.\n\n📊 Your items have generated ${seller.totalViews || 0} buyer views and ${seller.totalLeads || 0} WhatsApp inquiries so far! You can inspect your live views here:\n${statsUrl}\n\nTo keep your goods online and at the top for buyers in Kampala, please send your renewal payment of ${amountDue} via MTN MoMo / Airtel Money to 0772123456 (Kato Samuel Raymond).\n\nReply here with your confirmation SMS once paid so we keep your products active. Thank you!`;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  // 1-Click Action: Send Live Views Performance Report to Merchant
+  const handleSendViewsReport = (seller: any) => {
+    const phone = (seller.whatsappNumber || seller.phone).replace(/[^0-9]/g, '');
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://shidmagic.com';
+    const statsUrl = `${origin}/merchant/${seller.id}`;
+    const message = `📊 *ShidMagic Performance Report for ${seller.name}*\nShop: ${seller.businessName || seller.location}\n\n👁️ *Total Real Buyer Views:* ${seller.totalViews || 0} views\n💬 *WhatsApp Buyer Leads:* ${seller.totalLeads || 0} inquiries\n📦 *Active Listings:* ${seller.activeListingsCount || 0} online\n⏳ *Subscription Status:* ${seller.isExpired ? 'Expired' : `${seller.daysRemaining} days remaining`}\n\n👉 *View your live performance and individual product views here:*\n${statsUrl}\n\nNeed to add more goods or renew? Reply directly to this WhatsApp!`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -1011,7 +1022,25 @@ export default function AdminPage() {
                                     )}
                                   </div>
 
-                                  <div className="flex items-center justify-end gap-1 pt-0.5">
+                                  <div className="flex flex-wrap items-center justify-end gap-1 pt-0.5">
+                                    <Link
+                                      href={`/merchant/${seller.id}`}
+                                      target="_blank"
+                                      title="Open Client's Live Performance & Views Dashboard"
+                                      className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:bg-slate-200 transition"
+                                    >
+                                      <Eye className="h-3 w-3 text-emerald-700" />
+                                      <span>Live Stats</span>
+                                    </Link>
+
+                                    <button
+                                      onClick={() => handleSendViewsReport(seller)}
+                                      title="Send Performance Report to Merchant on WhatsApp"
+                                      className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100 transition"
+                                    >
+                                      Send Report
+                                    </button>
+
                                     <button
                                       onClick={() => handleRenewSeller(seller)}
                                       title="Record Payment & Renew 30 Days"
@@ -1023,9 +1052,9 @@ export default function AdminPage() {
                                     <button
                                       onClick={() => handleSendPaymentReminder(seller)}
                                       title="Send WhatsApp Payment SMS"
-                                      className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100"
+                                      className="rounded bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 hover:bg-rose-100"
                                     >
-                                      WA Reminder
+                                      Reminder
                                     </button>
 
                                     <button

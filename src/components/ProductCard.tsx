@@ -131,16 +131,22 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         {/* Compact Card Body */}
         <div className="flex flex-1 flex-col p-3">
-          {/* Price line */}
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-sm font-black text-slate-900">
-              {formatPrice(product.price)}
-            </span>
-            {product.originalPrice && product.originalPrice > product.price && (
-              <span className="text-[11px] text-slate-400 line-through">
-                {formatPrice(product.originalPrice)}
+          {/* Price line & Real Views Indicator */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-sm font-black text-slate-900">
+                {formatPrice(product.price)}
               </span>
-            )}
+              {product.originalPrice && product.originalPrice > product.price && (
+                <span className="text-[11px] text-slate-400 line-through">
+                  {formatPrice(product.originalPrice)}
+                </span>
+              )}
+            </div>
+
+            <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded" title="Total Buyer Views">
+              👁️ {product.viewsCount || 0}
+            </span>
           </div>
 
           {/* Product Title */}
