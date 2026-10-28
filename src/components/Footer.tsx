@@ -1,7 +1,17 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function Footer() {
+  const pathname = usePathname();
+
+  // Do not render the public marketplace footer inside the admin pages
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
+
   return (
     <footer className="border-t border-[#04382a] bg-[#031d16] text-emerald-100/80">
       {/* 3 Pillars / Value Proposition Banner (Solid Deep Forest Obsidian) */}

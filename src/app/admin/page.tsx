@@ -33,6 +33,7 @@ import {
   ChevronDown,
   Sparkles,
   X,
+  Menu,
   Loader2,
   Bell,
   Sun,
@@ -48,6 +49,7 @@ export default function AdminPage() {
   // Navigation State
   const [activeNav, setActiveNav] = useState<'dashboard' | 'merchants' | 'upload' | 'products' | 'orders'>('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Data State
   const [products, setProducts] = useState<Product[]>([]);
@@ -490,13 +492,26 @@ export default function AdminPage() {
     });
   }, [products, productFilter, globalSearch]);
 
+  const handleNavClick = (tab: 'dashboard' | 'merchants' | 'upload' | 'products' | 'orders') => {
+    setActiveNav(tab);
+    setIsMobileSidebarOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-row font-sans">
+      {/* Mobile Drawer Backdrop */}
+      {isMobileSidebarOpen && (
+        <div
+          onClick={() => setIsMobileSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-xs md:hidden"
+        />
+      )}
+
       {/* ================= LEFT SIDEBAR SHELL ================= */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex flex-col justify-between bg-[#070d18] text-slate-300 transition-all duration-200 border-r border-[#162032] ${
-          isSidebarCollapsed ? 'w-16' : 'w-64'
-        }`}
+          isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        } ${isSidebarCollapsed ? 'md:w-16 w-64' : 'w-64'}`}
       >
         {/* Sidebar Header with Brand & Collapse Toggle */}
         <div>
@@ -523,9 +538,19 @@ export default function AdminPage() {
               </div>
             )}
 
+            {/* Mobile close button */}
+            <button
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="md:hidden rounded-lg p-1.5 text-slate-400 hover:bg-[#162032] hover:text-white"
+              title="Close sidebar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            {/* Desktop collapse toggle */}
             <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="rounded-lg p-1 text-slate-400 hover:bg-[#162032] hover:text-white transition"
+              className="hidden md:block rounded-lg p-1 text-slate-400 hover:bg-[#162032] hover:text-white transition"
               title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {isSidebarCollapsed ? (
@@ -547,7 +572,7 @@ export default function AdminPage() {
               )}
               <div className="space-y-1">
                 <button
-                  onClick={() => setActiveNav('dashboard')}
+                  onClick={() => handleNavClick('dashboard')}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition ${
                     activeNav === 'dashboard'
                       ? 'bg-blue-600 text-white shadow-sm'
@@ -570,7 +595,7 @@ export default function AdminPage() {
               )}
               <div className="space-y-1">
                 <button
-                  onClick={() => setActiveNav('merchants')}
+                  onClick={() => handleNavClick('merchants')}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition ${
                     activeNav === 'merchants'
                       ? 'bg-blue-600 text-white shadow-sm'
@@ -590,7 +615,10 @@ export default function AdminPage() {
                 </button>
 
                 <button
-                  onClick={() => setShowAddMerchantModal(true)}
+                  onClick={() => {
+                    setShowAddMerchantModal(true);
+                    setIsMobileSidebarOpen(false);
+                  }}
                   className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-[#111927] hover:text-white transition pl-4"
                   title="Record Listing Fee & Onboard"
                 >
@@ -600,7 +628,7 @@ export default function AdminPage() {
 
                 <button
                   onClick={() => {
-                    setActiveNav('merchants');
+                    handleNavClick('merchants');
                     setMerchantFilter('expired');
                   }}
                   className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-[#111927] hover:text-white transition pl-4"
@@ -621,7 +649,7 @@ export default function AdminPage() {
               )}
               <div className="space-y-1">
                 <button
-                  onClick={() => setActiveNav('products')}
+                  onClick={() => handleNavClick('products')}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition ${
                     activeNav === 'products'
                       ? 'bg-blue-600 text-white shadow-sm'
@@ -634,7 +662,7 @@ export default function AdminPage() {
                 </button>
 
                 <button
-                  onClick={() => setActiveNav('upload')}
+                  onClick={() => handleNavClick('upload')}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition pl-4 ${
                     activeNav === 'upload'
                       ? 'text-blue-400 font-bold bg-[#111927]'
@@ -657,7 +685,7 @@ export default function AdminPage() {
               )}
               <div className="space-y-1">
                 <button
-                  onClick={() => setActiveNav('orders')}
+                  onClick={() => handleNavClick('orders')}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition ${
                     activeNav === 'orders'
                       ? 'bg-blue-600 text-white shadow-sm'
@@ -701,30 +729,40 @@ export default function AdminPage() {
 
       {/* ================= RIGHT MAIN APPLICATION CANVAS ================= */}
       <div
-        className={`flex-1 flex flex-col min-h-screen transition-all duration-200 ${
-          isSidebarCollapsed ? 'pl-16' : 'pl-64'
-        }`}
+        className={`flex-1 flex flex-col min-h-screen min-w-0 w-full transition-all duration-200 ${
+          isSidebarCollapsed ? 'md:pl-16' : 'md:pl-64'
+        } pl-0`}
       >
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-40 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shadow-2xs">
-          {/* Global Search with Ctrl+K shortcut */}
-          <div className="relative w-72 sm:w-96">
-            <Search className="h-4 w-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
-            <input
-              id="admin-global-search"
-              type="text"
-              placeholder="Search pages, clients, products..."
-              value={globalSearch}
-              onChange={(e) => setGlobalSearch(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-14 text-xs text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:bg-white focus:outline-none transition shadow-2xs"
-            />
-            <span className="absolute right-2.5 top-2.5 rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-mono text-slate-600 pointer-events-none">
-              Ctrl K
-            </span>
+        <header className="sticky top-0 z-30 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 shadow-2xs gap-3">
+          {/* Mobile Hamburger & Global Search */}
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <button
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="md:hidden rounded-xl border border-slate-200 p-2 text-slate-700 hover:bg-slate-50 flex-shrink-0"
+              title="Open Navigation Menu"
+            >
+              <Menu className="h-4 w-4" />
+            </button>
+
+            <div className="relative flex-1 max-w-xs sm:max-w-sm md:max-w-md min-w-0">
+              <Search className="h-4 w-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+              <input
+                id="admin-global-search"
+                type="text"
+                placeholder="Search clients, goods, phone..."
+                value={globalSearch}
+                onChange={(e) => setGlobalSearch(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-14 text-xs text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:bg-white focus:outline-none transition shadow-2xs"
+              />
+              <span className="hidden sm:inline-block absolute right-2.5 top-2.5 rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-mono text-slate-600 pointer-events-none">
+                Ctrl K
+              </span>
+            </div>
           </div>
 
           {/* Top Right Tools & Profile */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             {/* Live Marketplace link */}
             <Link
               href="/"
@@ -739,7 +777,7 @@ export default function AdminPage() {
             <div className="relative">
               <button
                 onClick={() => {
-                  setActiveNav('merchants');
+                  handleNavClick('merchants');
                   setMerchantFilter('expired');
                 }}
                 className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 transition relative"
@@ -993,8 +1031,8 @@ export default function AdminPage() {
               </div>
 
               {/* Table of merchants */}
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
-                <table className="w-full text-left border-collapse text-xs">
+              <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-2xs">
+                <table className="w-full min-w-[700px] text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500">
                       <th className="p-3.5">Merchant & Location</th>
@@ -1161,8 +1199,8 @@ export default function AdminPage() {
               </div>
 
               {/* Table */}
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
-                <table className="w-full text-left border-collapse text-xs">
+              <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-2xs">
+                <table className="w-full min-w-[700px] text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500">
                       <th className="p-3.5">Merchant / Business</th>
@@ -1310,8 +1348,8 @@ export default function AdminPage() {
               </div>
 
               {/* Product table */}
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
-                <table className="w-full text-left border-collapse text-xs">
+              <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-2xs">
+                <table className="w-full min-w-[700px] text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500">
                       <th className="p-3.5">Product Details</th>
@@ -1699,8 +1737,8 @@ export default function AdminPage() {
                 </p>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
-                <table className="w-full text-left border-collapse text-xs">
+              <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-2xs">
+                <table className="w-full min-w-[700px] text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500">
                       <th className="p-3.5">ID</th>
@@ -1745,6 +1783,18 @@ export default function AdminPage() {
             </div>
           )}
         </main>
+
+        {/* Subtle Admin System Footer */}
+        <footer className="mt-auto border-t border-slate-200 bg-white px-6 py-3.5 text-center sm:flex sm:items-center sm:justify-between text-[11px] text-slate-500">
+          <div className="flex items-center justify-center sm:justify-start gap-2">
+            <span className="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
+            <span className="font-semibold text-slate-700">ShidMagic Admin Operations</span>
+            <span>• Terminal v2.4</span>
+          </div>
+          <p className="mt-1 sm:mt-0 text-[10px] text-slate-400">
+            Kampala, Uganda • Verified Physical Shop Listings Concierge
+          </p>
+        </footer>
       </div>
 
       {/* ================= MODAL: REGISTER NEW MERCHANT ================= */}
