@@ -1,42 +1,55 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  Package,
+  LayoutDashboard,
   Users,
-  MessageCircle,
-  Eye,
+  Package,
   PlusCircle,
-  CheckCircle2,
-  Trash2,
-  Share2,
+  MessageCircle,
   Phone,
   MapPin,
-  TrendingUp,
-  Search,
-  Check,
-  Send,
-  Loader2,
-  X,
-  Image as ImageIcon,
-  AlertTriangle,
   Clock,
   LogOut,
-  Flame,
   ShieldCheck,
   Camera,
-  RefreshCw,
+  Trash2,
+  Share2,
+  Eye,
+  Search,
+  CheckCircle2,
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  TrendingUp,
+  DollarSign,
+  TrendingDown,
+  Layers,
+  FileText,
+  Calendar,
   ExternalLink,
+  ChevronDown,
+  Sparkles,
+  X,
+  Loader2,
+  Bell,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { Product, Seller, OrderInquiry, Category, ProductCondition, ListingPlan } from '@/lib/types';
-import { formatPrice, buildSellerReportWhatsAppLink } from '@/lib/utils';
+import { formatPrice } from '@/lib/utils';
 import FlyerModal from '@/components/FlyerModal';
 
 export default function AdminPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'overview' | 'merchants' | 'products' | 'upload' | 'orders'>('overview');
+
+  // Navigation State
+  const [activeNav, setActiveNav] = useState<'dashboard' | 'merchants' | 'upload' | 'products' | 'orders'>('dashboard');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // Data State
   const [products, setProducts] = useState<Product[]>([]);
   const [sellers, setSellers] = useState<any[]>([]);
   const [orders, setOrders] = useState<OrderInquiry[]>([]);
@@ -44,14 +57,15 @@ export default function AdminPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  // Global Header Search
+  const [globalSearch, setGlobalSearch] = useState('');
+
   // Selected Flyer Modal
   const [selectedProductForFlyer, setSelectedProductForFlyer] = useState<Product | null>(null);
 
   // Filters
   const [merchantFilter, setMerchantFilter] = useState<'all' | 'active' | 'expired' | 'suspended'>('all');
-  const [merchantSearch, setMerchantSearch] = useState('');
   const [productFilter, setProductFilter] = useState<'all' | 'active' | 'suspended' | 'sold'>('all');
-  const [productSearch, setProductSearch] = useState('');
 
   // Modals
   const [showAddMerchantModal, setShowAddMerchantModal] = useState(false);
@@ -116,6 +130,18 @@ export default function AdminPage() {
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  // Keyboard shortcut Ctrl+K focus
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('admin-global-search')?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const handleLogout = async () => {
@@ -204,7 +230,7 @@ export default function AdminPage() {
     const phone = (seller.whatsappNumber || seller.phone).replace(/[^0-9]/g, '');
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://shidmagic.com';
     const statsUrl = `${origin}/merchant/${seller.id}`;
-    const message = `Hello ${seller.name} (${seller.businessName || 'ShidMagic Merchant'}),\n\nYour product listing subscription period on ShidMagic Uganda has expired.\n\n📊 Your items have generated ${seller.totalViews || 0} buyer views and ${seller.totalLeads || 0} WhatsApp inquiries so far! You can inspect your live views here:\n${statsUrl}\n\nTo keep your goods online and at the top for buyers in Kampala, please send your renewal payment of ${amountDue} via MTN MoMo / Airtel Money to 0772123456 (Kato Samuel Raymond).\n\nReply here with your confirmation SMS once paid so we keep your products active. Thank you!`;
+    const message = `Hello ${seller.name} (${seller.businessName || 'ShidMagic Merchant'}),\n\nYour product listing subscription period on ShidMagic Uganda has expired.\n\nYour items have generated ${seller.totalViews || 0} buyer views and ${seller.totalLeads || 0} WhatsApp inquiries so far! You can inspect your live views here:\n${statsUrl}\n\nTo keep your goods online and at the top for buyers in Kampala, please send your renewal payment of ${amountDue} via MTN MoMo / Airtel Money to 0772123456 (Kato Samuel Raymond).\n\nReply here with your confirmation SMS once paid so we keep your products active. Thank you!`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -213,7 +239,7 @@ export default function AdminPage() {
     const phone = (seller.whatsappNumber || seller.phone).replace(/[^0-9]/g, '');
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://shidmagic.com';
     const statsUrl = `${origin}/merchant/${seller.id}`;
-    const message = `📊 *ShidMagic Performance Report for ${seller.name}*\nShop: ${seller.businessName || seller.location}\n\n👁️ *Total Real Buyer Views:* ${seller.totalViews || 0} views\n💬 *WhatsApp Buyer Leads:* ${seller.totalLeads || 0} inquiries\n📦 *Active Listings:* ${seller.activeListingsCount || 0} online\n⏳ *Subscription Status:* ${seller.isExpired ? 'Expired' : `${seller.daysRemaining} days remaining`}\n\n👉 *View your live performance and individual product views here:*\n${statsUrl}\n\nNeed to add more goods or renew? Reply directly to this WhatsApp!`;
+    const message = `*ShidMagic Performance Report for ${seller.name}*\nShop: ${seller.businessName || seller.location}\n\n*Total Real Buyer Views:* ${seller.totalViews || 0} views\n*WhatsApp Buyer Leads:* ${seller.totalLeads || 0} inquiries\n*Active Listings:* ${seller.activeListingsCount || 0} online\n*Subscription Status:* ${seller.isExpired ? 'Expired' : `${seller.daysRemaining} days remaining`}\n\n*View your live performance and individual product views here:*\n${statsUrl}\n\nNeed to add more goods or renew? Reply directly to this WhatsApp!`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -243,7 +269,6 @@ export default function AdminPage() {
       if (data.success) {
         showNotification(`Merchant "${newMerchantName}" registered successfully!`);
         setShowAddMerchantModal(false);
-        // Reset form
         setNewMerchantName('');
         setNewMerchantBusiness('');
         setNewMerchantPhone('');
@@ -399,7 +424,6 @@ export default function AdminPage() {
       const data = await res.json();
       if (data.success) {
         showNotification('Product uploaded and published online successfully!');
-        // Reset form
         setProdTitle('');
         setProdPrice('');
         setProdOriginalPrice('');
@@ -407,7 +431,7 @@ export default function AdminPage() {
         setProdProblemSolved('');
         setProdImageUrls(['']);
         loadData();
-        setActiveTab('products');
+        setActiveNav('products');
       } else {
         showNotification(data.error || 'Failed to upload product', 'error');
       }
@@ -427,1193 +451,1303 @@ export default function AdminPage() {
   const totalRevenue = sellers.reduce((acc, s) => acc + (s.totalListingFeesPaid || 0), 0) +
     products.reduce((acc, p) => acc + (p.listingFee || 0), 0);
   const totalLeads = products.reduce((acc, p) => acc + p.whatsappClicks + p.callClicks, 0);
+  const totalViews = products.reduce((acc, p) => acc + p.viewsCount, 0);
 
   // Filtered views
-  const filteredSellers = sellers.filter((s) => {
-    if (merchantFilter === 'active' && s.status !== 'active') return false;
-    if (merchantFilter === 'suspended' && s.status !== 'suspended') return false;
-    if (merchantFilter === 'expired' && !s.isExpired) return false;
-    if (merchantSearch) {
-      const q = merchantSearch.toLowerCase();
-      return (
-        s.name.toLowerCase().includes(q) ||
-        (s.businessName && s.businessName.toLowerCase().includes(q)) ||
-        s.phone.includes(q) ||
-        s.location.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+  const filteredSellers = useMemo(() => {
+    return sellers.filter((s) => {
+      if (merchantFilter === 'active' && s.status !== 'active') return false;
+      if (merchantFilter === 'suspended' && s.status !== 'suspended') return false;
+      if (merchantFilter === 'expired' && !s.isExpired) return false;
+      if (globalSearch.trim()) {
+        const q = globalSearch.toLowerCase().trim();
+        return (
+          s.name.toLowerCase().includes(q) ||
+          (s.businessName && s.businessName.toLowerCase().includes(q)) ||
+          s.phone.includes(q) ||
+          s.location.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [sellers, merchantFilter, globalSearch]);
 
-  const filteredProducts = products.filter((p) => {
-    if (productFilter === 'active' && p.status !== 'active') return false;
-    if (productFilter === 'suspended' && p.status !== 'suspended') return false;
-    if (productFilter === 'sold' && p.status !== 'sold') return false;
-    if (productSearch) {
-      const q = productSearch.toLowerCase();
-      return (
-        p.title.toLowerCase().includes(q) ||
-        p.sellerName.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      if (productFilter === 'active' && p.status !== 'active') return false;
+      if (productFilter === 'suspended' && p.status !== 'suspended') return false;
+      if (productFilter === 'sold' && p.status !== 'sold') return false;
+      if (globalSearch.trim()) {
+        const q = globalSearch.toLowerCase().trim();
+        return (
+          p.title.toLowerCase().includes(q) ||
+          p.sellerName.toLowerCase().includes(q) ||
+          p.category.toLowerCase().includes(q) ||
+          (p.problemSolved && p.problemSolved.toLowerCase().includes(q))
+        );
+      }
+      return true;
+    });
+  }, [products, productFilter, globalSearch]);
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 pb-16">
-      {/* Operator Top Bar */}
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white shadow-2xs">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-800 text-white font-black text-sm">
-              S
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-black text-slate-900 tracking-tight">
-                  Shid<span className="text-emerald-700">Magic</span> Admin
-                </span>
-                <span className="rounded bg-emerald-100 px-1.5 py-0.2 text-[9px] font-bold text-emerald-800">
-                  OPERATOR
-                </span>
-                <span className="hidden sm:inline-block rounded border border-slate-200 bg-slate-50 px-2 py-0.2 text-[9px] font-mono text-slate-600">
-                  admin.shidmagic.com
-                </span>
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-row font-sans">
+      {/* ================= LEFT SIDEBAR SHELL ================= */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col justify-between bg-[#070d18] text-slate-300 transition-all duration-200 border-r border-[#162032] ${
+          isSidebarCollapsed ? 'w-16' : 'w-64'
+        }`}
+      >
+        {/* Sidebar Header with Brand & Collapse Toggle */}
+        <div>
+          <div className="flex h-16 items-center justify-between px-4 border-b border-[#162032]">
+            {!isSidebarCollapsed && (
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white font-black text-sm shadow-sm flex-shrink-0">
+                  SM
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-sm font-black text-white tracking-tight leading-tight truncate">
+                    ShidMagic Admin
+                  </h1>
+                  <p className="text-[10px] text-slate-400 font-medium leading-none mt-0.5 truncate">
+                    Concierge & Operations
+                  </p>
+                </div>
               </div>
-              <p className="text-[10px] text-slate-500">Concierge Desk & Merchant Subscription Terminal</p>
-            </div>
+            )}
+
+            {isSidebarCollapsed && (
+              <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white font-black text-sm">
+                SM
+              </div>
+            )}
+
+            <button
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="rounded-lg p-1 text-slate-400 hover:bg-[#162032] hover:text-white transition"
+              title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {isSidebarCollapsed ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <ChevronLeft className="h-4 w-4" />
+              )}
+            </button>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          {/* Navigation Items */}
+          <div className="p-3 space-y-6 overflow-y-auto max-h-[calc(100vh-140px)]">
+            {/* GROUP 1: MAIN */}
+            <div>
+              {!isSidebarCollapsed && (
+                <p className="px-3 text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">
+                  MAIN
+                </p>
+              )}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setActiveNav('dashboard')}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                    activeNav === 'dashboard'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:bg-[#111927] hover:text-white'
+                  }`}
+                  title="Dashboard"
+                >
+                  <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
+                  {!isSidebarCollapsed && <span>Dashboard</span>}
+                </button>
+              </div>
+            </div>
+
+            {/* GROUP 2: FINANCE & MERCHANTS */}
+            <div>
+              {!isSidebarCollapsed && (
+                <p className="px-3 text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">
+                  FINANCE & CLIENTS
+                </p>
+              )}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setActiveNav('merchants')}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                    activeNav === 'merchants'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:bg-[#111927] hover:text-white'
+                  }`}
+                  title="Clients & Merchants CRM"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Users className="h-4 w-4 flex-shrink-0" />
+                    {!isSidebarCollapsed && <span className="truncate">Client CRM Directory</span>}
+                  </div>
+                  {!isSidebarCollapsed && expiredSellers.length > 0 && (
+                    <span className="rounded-full bg-rose-600 px-1.5 py-0.2 text-[9px] font-black text-white">
+                      {expiredSellers.length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setShowAddMerchantModal(true)}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-[#111927] hover:text-white transition pl-4"
+                  title="Record Listing Fee & Onboard"
+                >
+                  <DollarSign className="h-3.5 w-3.5 flex-shrink-0 text-emerald-400" />
+                  {!isSidebarCollapsed && <span>+ Record Listing Fee</span>}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveNav('merchants');
+                    setMerchantFilter('expired');
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-[#111927] hover:text-white transition pl-4"
+                  title="Manage Expirations"
+                >
+                  <Clock className="h-3.5 w-3.5 flex-shrink-0 text-amber-400" />
+                  {!isSidebarCollapsed && <span>Manage Expirations</span>}
+                </button>
+              </div>
+            </div>
+
+            {/* GROUP 3: CATALOG & ADVERTS */}
+            <div>
+              {!isSidebarCollapsed && (
+                <p className="px-3 text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">
+                  CATALOG & ADVERTS
+                </p>
+              )}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setActiveNav('products')}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                    activeNav === 'products'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:bg-[#111927] hover:text-white'
+                  }`}
+                  title="All Goods"
+                >
+                  <Package className="h-4 w-4 flex-shrink-0" />
+                  {!isSidebarCollapsed && <span>All Listed Goods</span>}
+                </button>
+
+                <button
+                  onClick={() => setActiveNav('upload')}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition pl-4 ${
+                    activeNav === 'upload'
+                      ? 'text-blue-400 font-bold bg-[#111927]'
+                      : 'text-slate-400 hover:bg-[#111927] hover:text-white'
+                  }`}
+                  title="Upload Goods for Client"
+                >
+                  <PlusCircle className="h-3.5 w-3.5 flex-shrink-0 text-blue-400" />
+                  {!isSidebarCollapsed && <span>+ Upload Goods for Client</span>}
+                </button>
+              </div>
+            </div>
+
+            {/* GROUP 4: LEADS & INQUIRIES */}
+            <div>
+              {!isSidebarCollapsed && (
+                <p className="px-3 text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">
+                  INQUIRIES
+                </p>
+              )}
+              <div className="space-y-1">
+                <button
+                  onClick={() => setActiveNav('orders')}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                    activeNav === 'orders'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:bg-[#111927] hover:text-white'
+                  }`}
+                  title="Customer Leads"
+                >
+                  <MessageCircle className="h-4 w-4 flex-shrink-0" />
+                  {!isSidebarCollapsed && <span>Customer Reservations</span>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar Bottom: User Profile & Sign Out (Matching Screenshot) */}
+        <div className="p-3 border-t border-[#162032] bg-[#050912]">
+          <div className="flex items-center gap-3 px-2 py-2">
+            <div className="h-9 w-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0 border border-blue-400/30">
+              SK
+            </div>
+            {!isSidebarCollapsed && (
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-white truncate">samuel kato</p>
+                <p className="text-[10px] text-slate-400 truncate">
+                  katosamuelraymond...
+                </p>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={handleLogout}
+            className="w-full mt-1.5 flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-400 hover:bg-rose-950/40 hover:text-rose-300 transition"
+          >
+            <LogOut className="h-4 w-4 flex-shrink-0" />
+            {!isSidebarCollapsed && <span>Sign Out</span>}
+          </button>
+        </div>
+      </aside>
+
+      {/* ================= RIGHT MAIN APPLICATION CANVAS ================= */}
+      <div
+        className={`flex-1 flex flex-col min-h-screen transition-all duration-200 ${
+          isSidebarCollapsed ? 'pl-16' : 'pl-64'
+        }`}
+      >
+        {/* Top Header Bar */}
+        <header className="sticky top-0 z-40 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shadow-2xs">
+          {/* Global Search with Ctrl+K shortcut */}
+          <div className="relative w-72 sm:w-96">
+            <Search className="h-4 w-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+            <input
+              id="admin-global-search"
+              type="text"
+              placeholder="Search pages, clients, products..."
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-14 text-xs text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:bg-white focus:outline-none transition shadow-2xs"
+            />
+            <span className="absolute right-2.5 top-2.5 rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-mono text-slate-600 pointer-events-none">
+              Ctrl K
+            </span>
+          </div>
+
+          {/* Top Right Tools & Profile */}
+          <div className="flex items-center gap-3">
+            {/* Live Marketplace link */}
             <Link
               href="/"
               target="_blank"
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
             >
-              <span>View Live Marketplace</span>
-              <ExternalLink className="h-3 w-3" />
+              <ExternalLink className="h-3.5 w-3.5 text-slate-500" />
+              <span>Live Marketplace</span>
             </Link>
 
-            <button
-              onClick={handleLogout}
-              className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 transition"
-            >
-              <LogOut className="h-3 w-3" />
-              <span>Log Out</span>
+            {/* Notification Bell */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setActiveNav('merchants');
+                  setMerchantFilter('expired');
+                }}
+                className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 transition relative"
+                title={`${expiredSellers.length} expired subscriptions`}
+              >
+                <Bell className="h-4 w-4" />
+                {expiredSellers.length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[9px] font-black text-white">
+                    {expiredSellers.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* User Profile Pill */}
+            <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
+              <div className="h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-black shadow-sm">
+                SK
+              </div>
+              <div className="hidden md:block text-left">
+                <p className="text-xs font-bold text-slate-900 leading-tight">samuel kato</p>
+                <p className="text-[10px] text-slate-500 leading-tight">Admin Operator</p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Floating Notification */}
+        {notification && (
+          <div
+            className={`fixed bottom-4 right-4 z-50 rounded-xl px-4 py-3 shadow-xl text-xs font-bold flex items-center gap-2 border ${
+              notification.type === 'error'
+                ? 'bg-rose-50 text-rose-800 border-rose-300'
+                : 'bg-emerald-50 text-emerald-900 border-emerald-300'
+            }`}
+          >
+            {notification.type === 'error' ? (
+              <AlertTriangle className="h-4 w-4 text-rose-600 flex-shrink-0" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+            )}
+            <span>{notification.message}</span>
+            <button onClick={() => setNotification(null)} className="ml-2 text-slate-400 hover:text-slate-600">
+              <X className="h-3.5 w-3.5" />
             </button>
           </div>
-        </div>
+        )}
 
-        {/* Navigation Tabs */}
-        <div className="border-t border-slate-100 bg-slate-50 px-4 sm:px-6">
-          <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto py-1">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`rounded-md px-3.5 py-1.5 text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-                activeTab === 'overview'
-                  ? 'bg-emerald-800 text-white shadow-2xs'
-                  : 'text-slate-600 hover:bg-slate-200/60'
-              }`}
-            >
-              <TrendingUp className="h-3.5 w-3.5" />
-              <span>Overview</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('merchants')}
-              className={`rounded-md px-3.5 py-1.5 text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-                activeTab === 'merchants'
-                  ? 'bg-emerald-800 text-white shadow-2xs'
-                  : 'text-slate-600 hover:bg-slate-200/60'
-              }`}
-            >
-              <Users className="h-3.5 w-3.5" />
-              <span>Clients & Merchants CRM</span>
-              <span className="rounded-full bg-emerald-900/30 px-1.5 py-0.2 text-[9px]">
-                {sellers.length}
-              </span>
-              {expiredSellers.length > 0 && (
-                <span className="rounded-full bg-rose-600 text-white px-1.5 py-0.2 text-[9px] font-black">
-                  {expiredSellers.length} EXPIRED
+        {/* Content Body */}
+        <main className="p-6 sm:p-8 space-y-6 flex-1">
+          {/* Page Greeting & Operational Header (Matching Screenshot) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-[11px] font-bold text-rose-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-600"></span>
+                  Operator
                 </span>
-              )}
-            </button>
+                <span className="text-xs font-semibold text-slate-500">
+                  Operational Command Center
+                </span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                Welcome back, samuel
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500">
+                Live overview of merchants, listings, flat listing fees, and real-time buyer analytics across Uganda.
+              </p>
+            </div>
 
-            <button
-              onClick={() => setActiveTab('products')}
-              className={`rounded-md px-3.5 py-1.5 text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-                activeTab === 'products'
-                  ? 'bg-emerald-800 text-white shadow-2xs'
-                  : 'text-slate-600 hover:bg-slate-200/60'
-              }`}
-            >
-              <Package className="h-3.5 w-3.5" />
-              <span>All Goods Catalog</span>
-              <span className="rounded-full bg-emerald-900/30 px-1.5 py-0.2 text-[9px]">
-                {products.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('upload')}
-              className={`rounded-md px-3.5 py-1.5 text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-                activeTab === 'upload'
-                  ? 'bg-emerald-800 text-white shadow-2xs'
-                  : 'text-slate-600 hover:bg-slate-200/60'
-              }`}
-            >
-              <PlusCircle className="h-3.5 w-3.5" />
-              <span>+ Upload Goods for Client</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('orders')}
-              className={`rounded-md px-3.5 py-1.5 text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
-                activeTab === 'orders'
-                  ? 'bg-emerald-800 text-white shadow-2xs'
-                  : 'text-slate-600 hover:bg-slate-200/60'
-              }`}
-            >
-              <MessageCircle className="h-3.5 w-3.5" />
-              <span>Customer Leads & Inquiries</span>
-              <span className="rounded-full bg-emerald-900/30 px-1.5 py-0.2 text-[9px]">
-                {orders.length}
-              </span>
-            </button>
+            {/* Date Pill (Matching Screenshot) */}
+            <div className="self-start sm:self-auto inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs">
+              <Calendar className="h-4 w-4 text-slate-400" />
+              <span>Wed, Oct 28, 2026</span>
+            </div>
           </div>
-        </div>
-      </header>
 
-      {/* Floating Notification */}
-      {notification && (
-        <div
-          className={`fixed bottom-4 right-4 z-50 rounded-xl px-4 py-3 shadow-xl text-xs font-bold flex items-center gap-2 border ${
-            notification.type === 'error'
-              ? 'bg-rose-50 text-rose-800 border-rose-300'
-              : 'bg-emerald-50 text-emerald-900 border-emerald-300'
-          }`}
-        >
-          {notification.type === 'error' ? (
-            <AlertTriangle className="h-4 w-4 text-rose-600 flex-shrink-0" />
-          ) : (
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-          )}
-          <span>{notification.message}</span>
-          <button onClick={() => setNotification(null)} className="ml-2 text-slate-400 hover:text-slate-600">
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
-
-      {/* Expired Alert Banner */}
-      {expiredSellers.length > 0 && activeTab !== 'merchants' && (
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-4">
-          <div className="rounded-xl border border-rose-300 bg-rose-50 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-            <div className="flex items-center gap-2.5">
-              <AlertTriangle className="h-5 w-5 text-rose-600 flex-shrink-0" />
+          {/* ================= SECTION: FINANCIAL OVERVIEW (EXACT SCREENSHOT LAYOUT) ================= */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-rose-900">
-                  {expiredSellers.length} Merchant Subscription(s) Have Expired!
+                <h2 className="text-sm font-black text-slate-900">Financial Overview</h2>
+                <p className="text-[11px] text-slate-500">
+                  Real-time UGX cashflow and concierge listing fee queue for October 2026
                 </p>
-                <p className="text-[11px] text-rose-700">
-                  Clients have not paid their renewal fee. You can suspend them with 1-click or send a WhatsApp reminder.
+              </div>
+              <span className="text-xs font-bold text-slate-700">
+                Net October 2026:{' '}
+                <span className="text-emerald-700 font-black">{formatPrice(totalRevenue)}</span>
+              </span>
+            </div>
+
+            {/* 4 Colored Metric Cards (Vertical Left Accent Bars) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Card 1: Green Accent (Current Month Income) */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs border-l-4 border-l-emerald-500 relative flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      CURRENT MONTH INCOME
+                    </span>
+                    <span className="h-7 w-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs">
+                      $
+                    </span>
+                  </div>
+                  <p className="text-xl sm:text-2xl font-black text-slate-900 mt-2">
+                    {formatPrice(totalRevenue)}
+                  </p>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-2">Recorded in October 2026</p>
+              </div>
+
+              {/* Card 2: Red Accent (Month Suspended / Unpaid) */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs border-l-4 border-l-rose-500 relative flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      SUSPENDED / HIDDEN
+                    </span>
+                    <span className="h-7 w-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-xs">
+                      <TrendingDown className="h-3.5 w-3.5" />
+                    </span>
+                  </div>
+                  <p className="text-xl sm:text-2xl font-black text-slate-900 mt-2">
+                    {suspendedSellersCount} Clients
+                  </p>
+                </div>
+                <p className="text-[11px] text-rose-600 font-semibold mt-2">
+                  {suspendedProductsCount} goods scrapped off public view
+                </p>
+              </div>
+
+              {/* Card 3: Amber Accent (Expiring / Pending Subscriptions) */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs border-l-4 border-l-amber-500 relative flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      PENDING CASH REQUESTS
+                    </span>
+                    <span className="h-7 w-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xs">
+                      <Clock className="h-3.5 w-3.5" />
+                    </span>
+                  </div>
+                  <p className="text-xl sm:text-2xl font-black text-slate-900 mt-2">
+                    {expiredSellers.length}
+                  </p>
+                </div>
+                <p className="text-[11px] text-amber-700 font-medium mt-2">
+                  Awaiting 30-day renewal payments
+                </p>
+              </div>
+
+              {/* Card 4: Blue Accent (Active Verified Goods) */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs border-l-4 border-l-blue-500 relative flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      LIVE ONLINE GOODS
+                    </span>
+                    <span className="h-7 w-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
+                      <Package className="h-3.5 w-3.5" />
+                    </span>
+                  </div>
+                  <p className="text-xl sm:text-2xl font-black text-slate-900 mt-2">
+                    {activeProductsCount}
+                  </p>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-2">
+                  Live for buyers across Uganda
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => {
-                setActiveTab('merchants');
-                setMerchantFilter('expired');
-              }}
-              className="rounded-lg bg-rose-700 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-rose-800 transition whitespace-nowrap self-start sm:self-auto"
-            >
-              Review Expired Clients &rarr;
-            </button>
-          </div>
-        </div>
-      )}
+          </section>
 
-      {/* Main Content Area */}
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 pt-6">
-        {loading ? (
-          <div className="flex h-64 items-center justify-center">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-              <Loader2 className="h-4 w-4 animate-spin text-emerald-700" />
-              <span>Loading operations data...</span>
+          {/* ================= SECTION: OPERATIONS, MERCHANTS & ACCESS ================= */}
+          <section className="space-y-3">
+            <h2 className="text-sm font-black text-slate-900">People, Operations & Access</h2>
+
+            {/* 4 Small Summary Chips */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-xl border border-slate-200 bg-white p-3.5 flex items-center justify-between shadow-2xs">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    ACTIVE MERCHANTS
+                  </span>
+                  <p className="text-lg font-black text-slate-900 mt-0.5">{activeSellersCount}</p>
+                </div>
+                <span className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                  <Users className="h-4 w-4" />
+                </span>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-3.5 flex items-center justify-between shadow-2xs">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    PINNED ADVERTS
+                  </span>
+                  <p className="text-lg font-black text-slate-900 mt-0.5">
+                    {products.filter((p) => p.isPinnedTop).length}
+                  </p>
+                </div>
+                <span className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                  <Sparkles className="h-4 w-4" />
+                </span>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-3.5 flex items-center justify-between shadow-2xs">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    WHATSAPP LEADS
+                  </span>
+                  <p className="text-lg font-black text-slate-900 mt-0.5">{totalLeads}</p>
+                </div>
+                <span className="h-8 w-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                  <MessageCircle className="h-4 w-4" />
+                </span>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-3.5 flex items-center justify-between shadow-2xs">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    REAL BUYER VIEWS
+                  </span>
+                  <p className="text-lg font-black text-slate-900 mt-0.5">
+                    {totalViews.toLocaleString()}
+                  </p>
+                </div>
+                <span className="h-8 w-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+                  <Eye className="h-4 w-4" />
+                </span>
+              </div>
             </div>
-          </div>
-        ) : (
-          <>
-            {/* ================= TAB 1: OVERVIEW ================= */}
-            {activeTab === 'overview' && (
-              <div className="space-y-6">
-                {/* Executive KPI Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                      Total Listing Revenue
-                    </p>
-                    <p className="mt-1 text-xl sm:text-2xl font-black text-emerald-800">
-                      {formatPrice(totalRevenue)}
-                    </p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Flat fees collected from clients</p>
-                  </div>
+          </section>
 
-                  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Active Merchants
-                      </p>
-                      <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.2 text-[9px] font-black">
-                        {activeSellersCount} Online
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xl sm:text-2xl font-black text-slate-900">
-                      {sellers.length} Total
-                    </p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      {suspendedSellersCount} suspended / {expiredSellers.length} expired
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Live Goods Online
-                      </p>
-                      <span className="rounded bg-amber-100 text-amber-800 px-1.5 py-0.2 text-[9px] font-black">
-                        {activeProductsCount} Live
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xl sm:text-2xl font-black text-slate-900">
-                      {products.length} Items
-                    </p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      {suspendedProductsCount} hidden from public
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                      WhatsApp Leads Delivered
-                    </p>
-                    <p className="mt-1 text-xl sm:text-2xl font-black text-emerald-700">
-                      {totalLeads} Buyer Leads
-                    </p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Direct buyer taps to seller WhatsApp</p>
-                  </div>
+          {/* ================= TAB 1: DASHBOARD HOME TABLE ================= */}
+          {activeNav === 'dashboard' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">Recent Merchant Activity</h3>
+                  <p className="text-xs text-slate-500">
+                    Quick visibility toggle, payment renewals, and performance monitoring.
+                  </p>
                 </div>
+                <button
+                  onClick={() => setShowAddMerchantModal(true)}
+                  className="rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700 transition shadow-2xs"
+                >
+                  + Add New Client
+                </button>
+              </div>
 
-                {/* Operations Quick Actions */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs space-y-3">
-                    <div className="flex items-center gap-2 text-emerald-800">
-                      <PlusCircle className="h-5 w-5" />
-                      <h3 className="font-black text-sm">New Client Onboarding</h3>
-                    </div>
-                    <p className="text-xs text-slate-600 leading-relaxed">
-                      A merchant contacted you? Register their shop, record listing fee payment, and schedule photo shoots.
-                    </p>
+              {/* Table of merchants */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      <th className="p-3.5">Merchant & Location</th>
+                      <th className="p-3.5">Phone / WhatsApp</th>
+                      <th className="p-3.5">Plan & Expiry</th>
+                      <th className="p-3.5">Live Stats</th>
+                      <th className="p-3.5">Status</th>
+                      <th className="p-3.5 text-right">Visibility Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {sellers.slice(0, 5).map((seller) => {
+                      const isSuspended = seller.status === 'suspended';
+                      return (
+                        <tr key={seller.id} className="hover:bg-slate-50 transition">
+                          <td className="p-3.5">
+                            <p className="font-bold text-slate-900">{seller.name}</p>
+                            <p className="text-[11px] text-slate-500">{seller.businessName || 'Merchant'}</p>
+                            <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                              <MapPin className="h-3 w-3 text-slate-400" />
+                              <span>{seller.location}</span>
+                            </p>
+                          </td>
+
+                          <td className="p-3.5">
+                            <p className="font-mono text-slate-800">{seller.phone}</p>
+                            <a
+                              href={`https://wa.me/${(seller.whatsappNumber || seller.phone).replace(/[^0-9]/g, '')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10px] font-bold text-emerald-700 hover:underline"
+                            >
+                              WA: {seller.whatsappNumber || seller.phone}
+                            </a>
+                          </td>
+
+                          <td className="p-3.5">
+                            <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                              {seller.packagePlan}
+                            </span>
+                            <div className="text-[10px] mt-1">
+                              {seller.isExpired ? (
+                                <span className="font-bold text-rose-600">EXPIRED</span>
+                              ) : (
+                                <span className="text-emerald-700 font-semibold">
+                                  {seller.daysRemaining}d left
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="p-3.5">
+                            <p className="font-bold text-slate-800">{seller.totalViews || 0} views</p>
+                            <p className="text-[10px] text-slate-500">{seller.totalLeads || 0} inquiries</p>
+                          </td>
+
+                          <td className="p-3.5">
+                            <span
+                              className={`rounded px-2 py-0.5 text-[9px] font-black ${
+                                isSuspended
+                                  ? 'bg-slate-200 text-slate-700'
+                                  : 'bg-emerald-100 text-emerald-800'
+                              }`}
+                            >
+                              {isSuspended ? 'HIDDEN' : 'ONLINE'}
+                            </span>
+                          </td>
+
+                          <td className="p-3.5 text-right space-x-1.5">
+                            {isSuspended ? (
+                              <button
+                                onClick={() => handleToggleSuspendSeller(seller.id, seller.status, seller.name)}
+                                className="rounded-lg bg-emerald-700 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-emerald-800 transition"
+                              >
+                                Put Online
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleToggleSuspendSeller(seller.id, seller.status, seller.name)}
+                                className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-100 transition"
+                              >
+                                Scrap Off
+                              </button>
+                            )}
+
+                            <Link
+                              href={`/merchant/${seller.id}`}
+                              target="_blank"
+                              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1"
+                            >
+                              <Eye className="h-3 w-3 text-emerald-700" />
+                              <span>Live Stats</span>
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ================= TAB 2: FULL CLIENT CRM ================= */}
+          {activeNav === 'merchants' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-black text-slate-900">Clients & Merchants CRM</h2>
+                  <p className="text-xs text-slate-500">
+                    Full CRUD operations, 1-click scrap off/hide, renewal payments, and WhatsApp reports.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowAddMerchantModal(true)}
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition shadow-2xs self-start sm:self-auto"
+                >
+                  + Register New Merchant
+                </button>
+              </div>
+
+              {/* Filter tabs */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  onClick={() => setMerchantFilter('all')}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    merchantFilter === 'all'
+                      ? 'bg-slate-900 text-white'
+                      : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  All ({sellers.length})
+                </button>
+                <button
+                  onClick={() => setMerchantFilter('active')}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    merchantFilter === 'active'
+                      ? 'bg-emerald-700 text-white'
+                      : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  Online Active ({activeSellersCount})
+                </button>
+                <button
+                  onClick={() => setMerchantFilter('expired')}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    merchantFilter === 'expired'
+                      ? 'bg-rose-600 text-white'
+                      : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  Expired Subscriptions ({expiredSellers.length})
+                </button>
+                <button
+                  onClick={() => setMerchantFilter('suspended')}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    merchantFilter === 'suspended'
+                      ? 'bg-slate-700 text-white'
+                      : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  Hidden / Suspended ({suspendedSellersCount})
+                </button>
+              </div>
+
+              {/* Table */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      <th className="p-3.5">Merchant / Business</th>
+                      <th className="p-3.5">Contacts</th>
+                      <th className="p-3.5">Plan & Expiry</th>
+                      <th className="p-3.5">Listings & Leads</th>
+                      <th className="p-3.5">Status</th>
+                      <th className="p-3.5 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredSellers.map((seller) => {
+                      const isSuspended = seller.status === 'suspended';
+                      return (
+                        <tr key={seller.id} className="hover:bg-slate-50 transition">
+                          <td className="p-3.5">
+                            <p className="font-bold text-slate-900">{seller.name}</p>
+                            <p className="text-[11px] text-slate-500">{seller.businessName}</p>
+                            <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                              <MapPin className="h-3 w-3 text-slate-400" />
+                              <span>{seller.location}</span>
+                            </p>
+                          </td>
+
+                          <td className="p-3.5">
+                            <p className="font-mono text-slate-800">{seller.phone}</p>
+                            <a
+                              href={`https://wa.me/${(seller.whatsappNumber || seller.phone).replace(/[^0-9]/g, '')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10px] font-bold text-emerald-700 hover:underline"
+                            >
+                              WA: {seller.whatsappNumber}
+                            </a>
+                          </td>
+
+                          <td className="p-3.5">
+                            <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                              {seller.packagePlan}
+                            </span>
+                            <div className="text-[10px] mt-1">
+                              {seller.isExpired ? (
+                                <span className="font-bold text-rose-600">EXPIRED</span>
+                              ) : (
+                                <span className="text-emerald-700 font-semibold">
+                                  {seller.daysRemaining}d left
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="p-3.5">
+                            <p className="font-bold text-slate-800">{seller.totalViews || 0} views</p>
+                            <p className="text-[10px] text-slate-500">{seller.totalLeads || 0} WhatsApp leads</p>
+                          </td>
+
+                          <td className="p-3.5">
+                            <span
+                              className={`rounded px-2 py-0.5 text-[9px] font-black ${
+                                isSuspended
+                                  ? 'bg-slate-200 text-slate-700'
+                                  : 'bg-emerald-100 text-emerald-800'
+                              }`}
+                            >
+                              {isSuspended ? 'HIDDEN' : 'ONLINE'}
+                            </span>
+                          </td>
+
+                          <td className="p-3.5 text-right space-x-1 whitespace-nowrap">
+                            {isSuspended ? (
+                              <button
+                                onClick={() => handleToggleSuspendSeller(seller.id, seller.status, seller.name)}
+                                className="rounded-lg bg-emerald-700 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-emerald-800 transition"
+                              >
+                                Put Online
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleToggleSuspendSeller(seller.id, seller.status, seller.name)}
+                                className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-100 transition"
+                              >
+                                Scrap Off
+                              </button>
+                            )}
+
+                            <Link
+                              href={`/merchant/${seller.id}`}
+                              target="_blank"
+                              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1"
+                              title="Client Live Analytics"
+                            >
+                              <Eye className="h-3 w-3 text-emerald-700" />
+                              <span>Live Stats</span>
+                            </Link>
+
+                            <button
+                              onClick={() => handleSendViewsReport(seller)}
+                              className="rounded-lg bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100"
+                              title="Send WhatsApp Report"
+                            >
+                              Report
+                            </button>
+
+                            <button
+                              onClick={() => handleRenewSeller(seller)}
+                              className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-200"
+                              title="Renew +30 Days"
+                            >
+                              Renew
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteMerchant(seller.id, seller.name)}
+                              className="rounded-lg p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                              title="Delete Client"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ================= TAB 3: ALL PRODUCTS CATALOG ================= */}
+          {activeNav === 'products' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-black text-slate-900">All Listed Goods</h2>
+                  <p className="text-xs text-slate-500">
+                    Pin items to the top moving adverts banner, toggle sold/active, or generate WhatsApp flyers.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setActiveNav('upload')}
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition shadow-2xs self-start sm:self-auto"
+                >
+                  + Upload Goods for Client
+                </button>
+              </div>
+
+              {/* Product table */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      <th className="p-3.5">Product Details</th>
+                      <th className="p-3.5">Price (UGX)</th>
+                      <th className="p-3.5">Merchant</th>
+                      <th className="p-3.5">Top Banner Advert</th>
+                      <th className="p-3.5">Status</th>
+                      <th className="p-3.5 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredProducts.map((p) => (
+                      <tr key={p.id} className="hover:bg-slate-50 transition">
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={p.images[0]}
+                              alt={p.title}
+                              className="h-10 w-10 rounded-lg object-contain bg-slate-50 border border-slate-200 p-0.5 flex-shrink-0"
+                            />
+                            <div className="min-w-0 max-w-sm">
+                              <p className="font-bold text-slate-900 truncate">{p.title}</p>
+                              <p className="text-[10px] text-slate-500">{p.category} • {p.condition}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="p-3.5 font-black text-slate-900">
+                          {formatPrice(p.price)}
+                        </td>
+
+                        <td className="p-3.5">
+                          <p className="font-bold text-slate-900">{p.sellerName}</p>
+                          <p className="text-[10px] text-slate-500">{p.sellerPhone}</p>
+                        </td>
+
+                        <td className="p-3.5">
+                          <button
+                            onClick={() => handleTogglePinTop(p)}
+                            className={`rounded-lg px-2.5 py-1 text-[10px] font-bold transition ${
+                              p.isPinnedTop
+                                ? 'bg-amber-400 text-slate-950 font-black'
+                                : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                            }`}
+                          >
+                            {p.isPinnedTop ? '★ Top Banner' : '+ Pin Advert'}
+                          </button>
+                        </td>
+
+                        <td className="p-3.5">
+                          <span
+                            className={`rounded px-2 py-0.5 text-[9px] font-black ${
+                              p.status === 'active'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : p.status === 'sold'
+                                ? 'bg-purple-100 text-purple-800'
+                                : 'bg-slate-200 text-slate-700'
+                            }`}
+                          >
+                            {p.status.toUpperCase()}
+                          </span>
+                          <div className="text-[9px] text-slate-400 mt-0.5">
+                            {p.viewsCount || 0} views • {p.whatsappClicks || 0} leads
+                          </div>
+                        </td>
+
+                        <td className="p-3.5 text-right space-x-1 whitespace-nowrap">
+                          <button
+                            onClick={() => handleToggleSold(p)}
+                            className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-200"
+                          >
+                            {p.status === 'sold' ? 'Activate' : 'Mark Sold'}
+                          </button>
+
+                          <button
+                            onClick={() => setSelectedProductForFlyer(p)}
+                            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-emerald-700"
+                            title="Generate WhatsApp Status Flyer"
+                          >
+                            <Share2 className="h-3.5 w-3.5" />
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteProduct(p.id, p.title)}
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ================= TAB 4: UPLOAD TERMINAL ================= */}
+          {activeNav === 'upload' && (
+            <div className="max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs space-y-6">
+              <div className="border-b border-slate-200 pb-3">
+                <span className="rounded bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 text-[10px] font-bold">
+                  Concierge Upload Form
+                </span>
+                <h2 className="mt-1 text-base sm:text-lg font-black text-slate-900">
+                  Publish Goods for Client & Record Listing Fee
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Select the merchant, attach product photos, set the price, and describe the problem solved.
+                </p>
+              </div>
+
+              <form onSubmit={handleUploadProduct} className="space-y-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      1. Select Merchant / Client *
+                    </label>
                     <button
+                      type="button"
                       onClick={() => setShowAddMerchantModal(true)}
-                      className="w-full rounded-lg bg-emerald-800 py-2 text-xs font-bold text-white hover:bg-emerald-900 transition"
+                      className="text-[11px] font-bold text-blue-600 hover:underline"
                     >
-                      + Register New Merchant
+                      + Register New Client First
                     </button>
                   </div>
 
-                  <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs space-y-3">
-                    <div className="flex items-center gap-2 text-amber-700">
-                      <Package className="h-5 w-5" />
-                      <h3 className="font-black text-sm">Upload Goods for Merchant</h3>
-                    </div>
-                    <p className="text-xs text-slate-600 leading-relaxed">
-                      Upload received photos, technical specifications, and connect direct WhatsApp buying buttons.
-                    </p>
-                    <button
-                      onClick={() => setActiveTab('upload')}
-                      className="w-full rounded-lg bg-amber-500 py-2 text-xs font-bold text-slate-950 hover:bg-amber-400 transition"
-                    >
-                      Open Upload Terminal
-                    </button>
+                  <select
+                    value={prodSellerId}
+                    onChange={(e) => setProdSellerId(e.target.value)}
+                    required
+                    className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs focus:border-blue-600 focus:outline-none"
+                  >
+                    {sellers.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.businessName || s.location}) - Phone: {s.phone}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Product Title *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 1000W All-in-One Solar Hybrid Generator & Inverter"
+                      value={prodTitle}
+                      onChange={(e) => setProdTitle(e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:border-blue-600 focus:outline-none"
+                    />
                   </div>
 
-                  <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs space-y-3">
-                    <div className="flex items-center gap-2 text-purple-700">
-                      <Clock className="h-5 w-5" />
-                      <h3 className="font-black text-sm">Subscription & Expirations</h3>
-                    </div>
-                    <p className="text-xs text-slate-600 leading-relaxed">
-                      Track 30-day listing periods. 1-click scrap off unpaid merchants or extend subscriptions.
-                    </p>
-                    <button
-                      onClick={() => setActiveTab('merchants')}
-                      className="w-full rounded-lg border border-slate-300 bg-slate-50 py-2 text-xs font-bold text-slate-800 hover:bg-slate-100 transition"
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Category *
+                    </label>
+                    <select
+                      value={prodCategory}
+                      onChange={(e) => setProdCategory(e.target.value as Category)}
+                      className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:border-blue-600 focus:outline-none"
                     >
-                      Manage Clients & Expirations
-                    </button>
+                      <option value="Solar & Power Backup">Solar & Power Backup</option>
+                      <option value="Water & Home Tech">Water & Home Tech</option>
+                      <option value="Phones & Computers">Phones & Computers</option>
+                      <option value="Agri & Food Processing">Agri & Food Processing</option>
+                      <option value="Fashion & Beauty">Fashion & Beauty</option>
+                      <option value="Vehicles & Auto">Vehicles & Auto</option>
+                    </select>
                   </div>
                 </div>
 
-                {/* Recent High Priority Spotlight Items */}
-                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h3 className="text-sm font-black text-slate-900">
-                        Top Spotlight Adverts (Moving Banner Items)
-                      </h3>
-                      <p className="text-xs text-slate-500">
-                        Goods pinned to the top sliding hero banner on the client marketplace.
-                      </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Selling Price (UGX) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      placeholder="e.g. 1850000"
+                      value={prodPrice}
+                      onChange={(e) => setProdPrice(e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:border-blue-600 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Original Price (UGX - Optional)
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 2200000"
+                      value={prodOriginalPrice}
+                      onChange={(e) => setProdOriginalPrice(e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:border-blue-600 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Condition *
+                    </label>
+                    <select
+                      value={prodCondition}
+                      onChange={(e) => setProdCondition(e.target.value as ProductCondition)}
+                      className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:border-blue-600 focus:outline-none"
+                    >
+                      <option value="Brand New">Brand New</option>
+                      <option value="Like New">Like New</option>
+                      <option value="Gently Used">Gently Used</option>
+                      <option value="Refurbished">Refurbished</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    What Problem Does This Solve in Uganda? *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Stops Umeme blackouts. Powers Wi-Fi and TV for 14 hours."
+                    value={prodProblemSolved}
+                    onChange={(e) => setProdProblemSolved(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:border-blue-600 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Full specifications, inclusions, shop warranty details..."
+                    value={prodDescription}
+                    onChange={(e) => setProdDescription(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:border-blue-600 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Product Photos (Multi-Image Showcase)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setProdImageUrls([...prodImageUrls, ''])}
+                      className="text-[11px] font-bold text-blue-600 hover:underline"
+                    >
+                      + Add Image URL
+                    </button>
+                  </div>
+
+                  {prodImageUrls.map((url, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <input
+                        type="url"
+                        placeholder="https://images.unsplash.com/..."
+                        value={url}
+                        onChange={(e) => {
+                          const updated = [...prodImageUrls];
+                          updated[idx] = e.target.value;
+                          setProdImageUrls(updated);
+                        }}
+                        className="flex-1 rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
+                      />
+                      {prodImageUrls.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setProdImageUrls(prodImageUrls.filter((_, i) => i !== idx))}
+                          className="rounded-lg p-2 text-slate-400 hover:text-rose-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
-                    <span className="text-xs font-bold text-emerald-800">
-                      {products.filter((p) => p.isPinnedTop).length} Pinned
+                  ))}
+                </div>
+
+                {/* Package Selection */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">
+                      Listing Package Plan
+                    </span>
+                    <span className="text-xs font-black text-blue-600">
+                      Listing Fee: {formatPrice(prodListingFee)}
                     </span>
                   </div>
 
-                  <div className="divide-y divide-slate-100">
-                    {products.slice(0, 5).map((p) => (
-                      <div key={p.id} className="py-2.5 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <img
-                            src={p.images[0]}
-                            alt={p.title}
-                            className="h-10 w-10 rounded-md object-contain bg-slate-50 border border-slate-200 p-0.5 flex-shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold text-slate-900 truncate">{p.title}</p>
-                            <p className="text-[11px] text-slate-500">
-                              {p.sellerName} • {formatPrice(p.price)}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <button
-                            onClick={() => handleTogglePinTop(p)}
-                            className={`rounded-md px-2.5 py-1 text-[10px] font-bold transition ${
-                              p.isPinnedTop
-                                ? 'bg-amber-400 text-slate-950 hover:bg-amber-300'
-                                : 'border border-slate-300 text-slate-600 hover:bg-slate-100'
-                            }`}
-                          >
-                            {p.isPinnedTop ? '★ Pinned to Top Banner' : 'Pin to Top Banner'}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ================= TAB 2: MERCHANTS & CLIENTS CRM ================= */}
-            {activeTab === 'merchants' && (
-              <div className="space-y-4">
-                {/* Action Bar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
-                  <div>
-                    <h2 className="text-base font-black text-slate-900">Clients & Merchants CRM</h2>
-                    <p className="text-xs text-slate-500">
-                      Manage subscriptions, fee payments, and 1-click visibility controls (scrap off or put online).
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() => setShowAddMerchantModal(true)}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-800 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-900 transition shadow-xs self-start sm:self-auto"
-                  >
-                    <PlusCircle className="h-4 w-4" />
-                    <span>Register New Client</span>
-                  </button>
-                </div>
-
-                {/* Filters */}
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                     <button
-                      onClick={() => setMerchantFilter('all')}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                        merchantFilter === 'all'
-                          ? 'bg-slate-900 text-white'
-                          : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                      type="button"
+                      onClick={() => {
+                        setProdListingPlan('Basic');
+                        setProdListingFee(15000);
+                        setProdIsPinnedTop(false);
+                      }}
+                      className={`p-3 rounded-xl border text-left transition ${
+                        prodListingPlan === 'Basic'
+                          ? 'border-blue-600 bg-white shadow-xs'
+                          : 'border-slate-200 bg-white/60'
                       }`}
                     >
-                      All Clients ({sellers.length})
+                      <p className="text-xs font-bold text-slate-900">Basic</p>
+                      <p className="text-[10px] text-slate-500">UGX 15,000 / mo</p>
                     </button>
+
                     <button
-                      onClick={() => setMerchantFilter('active')}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                        merchantFilter === 'active'
-                          ? 'bg-emerald-700 text-white'
-                          : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                      type="button"
+                      onClick={() => {
+                        setProdListingPlan('Featured');
+                        setProdListingFee(25000);
+                        setProdIsPinnedTop(false);
+                      }}
+                      className={`p-3 rounded-xl border text-left transition ${
+                        prodListingPlan === 'Featured'
+                          ? 'border-blue-600 bg-white shadow-xs'
+                          : 'border-slate-200 bg-white/60'
                       }`}
                     >
-                      Online Active ({activeSellersCount})
+                      <p className="text-xs font-bold text-slate-900">Featured</p>
+                      <p className="text-[10px] text-slate-500">UGX 25,000 / mo</p>
                     </button>
+
                     <button
-                      onClick={() => setMerchantFilter('expired')}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                        merchantFilter === 'expired'
-                          ? 'bg-rose-600 text-white'
-                          : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                      type="button"
+                      onClick={() => {
+                        setProdListingPlan('VIP');
+                        setProdListingFee(35000);
+                        setProdIsPinnedTop(true);
+                      }}
+                      className={`p-3 rounded-xl border text-left transition ${
+                        prodListingPlan === 'VIP'
+                          ? 'border-blue-600 bg-white shadow-xs'
+                          : 'border-slate-200 bg-white/60'
                       }`}
                     >
-                      Expired Subscriptions ({expiredSellers.length})
-                    </button>
-                    <button
-                      onClick={() => setMerchantFilter('suspended')}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                        merchantFilter === 'suspended'
-                          ? 'bg-slate-700 text-white'
-                          : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      Suspended / Hidden ({suspendedSellersCount})
+                      <p className="text-xs font-bold text-slate-900">★ VIP Spotlight</p>
+                      <p className="text-[10px] text-slate-500">UGX 35,000 / mo</p>
                     </button>
                   </div>
 
-                  <div className="w-full sm:w-64">
+                  <div className="pt-1 flex items-center gap-2">
                     <input
-                      type="text"
-                      placeholder="Search clients by name, shop, phone..."
-                      value={merchantSearch}
-                      onChange={(e) => setMerchantSearch(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs focus:border-emerald-700 focus:outline-none"
+                      type="checkbox"
+                      id="pinTopCheckbox"
+                      checked={prodIsPinnedTop}
+                      onChange={(e) => setProdIsPinnedTop(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600"
                     />
-                  </div>
-                </div>
-
-                {/* Merchants Table */}
-                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                          <th className="p-3">Merchant / Business</th>
-                          <th className="p-3">Contacts</th>
-                          <th className="p-3">Package & Expiry</th>
-                          <th className="p-3">Listings & Leads</th>
-                          <th className="p-3">Status</th>
-                          <th className="p-3 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {filteredSellers.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="p-8 text-center text-slate-400">
-                              No clients found matching the filter criteria.
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredSellers.map((seller) => {
-                            const isSuspended = seller.status === 'suspended';
-                            const isExp = seller.isExpired;
-
-                            return (
-                              <tr key={seller.id} className="hover:bg-slate-50/80 transition">
-                                <td className="p-3">
-                                  <div className="font-bold text-slate-900">{seller.name}</div>
-                                  <div className="text-[11px] text-slate-500">{seller.businessName}</div>
-                                  <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                                    <MapPin className="h-3 w-3 text-slate-400" />
-                                    <span>{seller.location}</span>
-                                  </div>
-                                  {seller.photographyService && (
-                                    <span className="inline-flex items-center gap-0.5 rounded bg-blue-50 text-blue-700 px-1.5 py-0.2 text-[9px] font-bold mt-1">
-                                      <Camera className="h-2.5 w-2.5" />
-                                      <span>Photos Taken by Us</span>
-                                    </span>
-                                  )}
-                                </td>
-
-                                <td className="p-3">
-                                  <div className="font-mono text-[11px] text-slate-800">{seller.phone}</div>
-                                  <div className="text-[10px] text-slate-500">WA: {seller.whatsappNumber}</div>
-                                  <a
-                                    href={`https://wa.me/${seller.whatsappNumber.replace(/[^0-9]/g, '')}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 hover:underline mt-0.5"
-                                  >
-                                    <MessageCircle className="h-2.5 w-2.5" />
-                                    <span>Chat Direct</span>
-                                  </a>
-                                </td>
-
-                                <td className="p-3">
-                                  <span
-                                    className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold ${
-                                      seller.packagePlan === 'VIP'
-                                        ? 'bg-purple-100 text-purple-800'
-                                        : seller.packagePlan === 'Featured'
-                                        ? 'bg-amber-100 text-amber-800'
-                                        : 'bg-slate-100 text-slate-700'
-                                    }`}
-                                  >
-                                    {seller.packagePlan} Listing
-                                  </span>
-
-                                  <div className="mt-1 text-[11px]">
-                                    {isExp ? (
-                                      <span className="font-bold text-rose-600 flex items-center gap-1">
-                                        <AlertTriangle className="h-3 w-3" />
-                                        <span>EXPIRED ({Math.abs(seller.daysRemaining)}d ago)</span>
-                                      </span>
-                                    ) : (
-                                      <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                                        <Clock className="h-3 w-3" />
-                                        <span>{seller.daysRemaining} days left</span>
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  <div className="text-[10px] text-slate-400 mt-0.5">
-                                    Paid Total: {formatPrice(seller.totalListingFeesPaid || 0)}
-                                  </div>
-                                </td>
-
-                                <td className="p-3">
-                                  <div className="font-semibold text-slate-900">
-                                    {seller.activeListingsCount} active / {seller.totalProductsCount} total
-                                  </div>
-                                  <div className="text-[10px] text-slate-500">
-                                    {seller.totalViews} views • {seller.totalLeads} leads
-                                  </div>
-                                </td>
-
-                                <td className="p-3">
-                                  <span
-                                    className={`inline-block rounded px-2 py-0.5 text-[10px] font-black ${
-                                      isSuspended
-                                        ? 'bg-slate-200 text-slate-700'
-                                        : 'bg-emerald-100 text-emerald-800'
-                                    }`}
-                                  >
-                                    {isSuspended ? '● HIDDEN / SUSPENDED' : '● ONLINE ACTIVE'}
-                                  </span>
-                                  {isSuspended && seller.suspendedReason && (
-                                    <p className="text-[9px] text-slate-400 mt-0.5 max-w-[140px] truncate">
-                                      {seller.suspendedReason}
-                                    </p>
-                                  )}
-                                </td>
-
-                                <td className="p-3 text-right space-y-1">
-                                  {/* THE CRUCIAL 1-CLICK TOGGLE TO SCRAP OFF OR ACTIVATE */}
-                                  <div>
-                                    {isSuspended ? (
-                                      <button
-                                        disabled={actionLoading === seller.id}
-                                        onClick={() => handleToggleSuspendSeller(seller.id, seller.status, seller.name)}
-                                        className="w-full sm:w-auto rounded-md bg-emerald-700 px-2.5 py-1 text-[11px] font-black text-white hover:bg-emerald-800 transition shadow-2xs"
-                                      >
-                                        Put Online Again
-                                      </button>
-                                    ) : (
-                                      <button
-                                        disabled={actionLoading === seller.id}
-                                        onClick={() => handleToggleSuspendSeller(seller.id, seller.status, seller.name)}
-                                        className="w-full sm:w-auto rounded-md border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px] font-black text-rose-700 hover:bg-rose-100 transition"
-                                      >
-                                        Scrap Off (Hide All)
-                                      </button>
-                                    )}
-                                  </div>
-
-                                  <div className="flex flex-wrap items-center justify-end gap-1 pt-0.5">
-                                    <Link
-                                      href={`/merchant/${seller.id}`}
-                                      target="_blank"
-                                      title="Open Client's Live Performance & Views Dashboard"
-                                      className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 hover:bg-slate-200 transition"
-                                    >
-                                      <Eye className="h-3 w-3 text-emerald-700" />
-                                      <span>Live Stats</span>
-                                    </Link>
-
-                                    <button
-                                      onClick={() => handleSendViewsReport(seller)}
-                                      title="Send Performance Report to Merchant on WhatsApp"
-                                      className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100 transition"
-                                    >
-                                      Send Report
-                                    </button>
-
-                                    <button
-                                      onClick={() => handleRenewSeller(seller)}
-                                      title="Record Payment & Renew 30 Days"
-                                      className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-800 hover:bg-slate-200"
-                                    >
-                                      Renew +30d
-                                    </button>
-
-                                    <button
-                                      onClick={() => handleSendPaymentReminder(seller)}
-                                      title="Send WhatsApp Payment SMS"
-                                      className="rounded bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 hover:bg-rose-100"
-                                    >
-                                      Reminder
-                                    </button>
-
-                                    <button
-                                      onClick={() => handleDeleteMerchant(seller.id, seller.name)}
-                                      title="Delete Merchant Permanently"
-                                      className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ================= TAB 3: PRODUCTS CATALOG ================= */}
-            {activeTab === 'products' && (
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
-                  <div>
-                    <h2 className="text-base font-black text-slate-900">All Client Goods Catalog</h2>
-                    <p className="text-xs text-slate-500">
-                      Toggle active/sold, pin goods to top sliding banner adverts, or generate WhatsApp status flyers.
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() => setActiveTab('upload')}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-800 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-900 transition shadow-xs self-start sm:self-auto"
-                  >
-                    <PlusCircle className="h-4 w-4" />
-                    <span>Upload Goods for Client</span>
-                  </button>
-                </div>
-
-                {/* Filters */}
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => setProductFilter('all')}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                        productFilter === 'all'
-                          ? 'bg-slate-900 text-white'
-                          : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      All ({products.length})
-                    </button>
-                    <button
-                      onClick={() => setProductFilter('active')}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                        productFilter === 'active'
-                          ? 'bg-emerald-700 text-white'
-                          : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      Active Online ({activeProductsCount})
-                    </button>
-                    <button
-                      onClick={() => setProductFilter('suspended')}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                        productFilter === 'suspended'
-                          ? 'bg-slate-700 text-white'
-                          : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      Hidden / Suspended ({suspendedProductsCount})
-                    </button>
-                    <button
-                      onClick={() => setProductFilter('sold')}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                        productFilter === 'sold'
-                          ? 'bg-purple-700 text-white'
-                          : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      Sold Out
-                    </button>
-                  </div>
-
-                  <div className="w-full sm:w-64">
-                    <input
-                      type="text"
-                      placeholder="Search title, merchant, category..."
-                      value={productSearch}
-                      onChange={(e) => setProductSearch(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs focus:border-emerald-700 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Product Listings Table */}
-                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                          <th className="p-3">Product</th>
-                          <th className="p-3">Price (UGX)</th>
-                          <th className="p-3">Merchant</th>
-                          <th className="p-3">Top Adverts Banner</th>
-                          <th className="p-3">Status</th>
-                          <th className="p-3 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {filteredProducts.map((p) => (
-                          <tr key={p.id} className="hover:bg-slate-50/80 transition">
-                            <td className="p-3">
-                              <div className="flex items-center gap-2.5">
-                                <img
-                                  src={p.images[0]}
-                                  alt={p.title}
-                                  className="h-10 w-10 rounded-md object-contain bg-slate-50 border border-slate-200 p-0.5 flex-shrink-0"
-                                />
-                                <div className="min-w-0 max-w-sm">
-                                  <div className="font-bold text-slate-900 truncate">{p.title}</div>
-                                  <div className="text-[10px] text-slate-500">
-                                    {p.category} • {p.condition}
-                                  </div>
-                                  {p.problemSolved && (
-                                    <p className="text-[9px] text-emerald-800 line-clamp-1 italic mt-0.5">
-                                      &ldquo;{p.problemSolved}&rdquo;
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-
-                            <td className="p-3">
-                              <div className="font-black text-slate-900">{formatPrice(p.price)}</div>
-                              {p.originalPrice && (
-                                <div className="text-[10px] text-slate-400 line-through">
-                                  {formatPrice(p.originalPrice)}
-                                </div>
-                              )}
-                            </td>
-
-                            <td className="p-3">
-                              <div className="font-semibold text-slate-900">{p.sellerName}</div>
-                              <div className="text-[10px] text-slate-500 font-mono">{p.sellerPhone}</div>
-                              <div className="text-[10px] text-slate-400">{p.sellerLocation}</div>
-                            </td>
-
-                            <td className="p-3">
-                              <button
-                                onClick={() => handleTogglePinTop(p)}
-                                className={`rounded px-2 py-1 text-[10px] font-bold transition flex items-center gap-1 ${
-                                  p.isPinnedTop
-                                    ? 'bg-amber-400 text-slate-950 hover:bg-amber-300'
-                                    : 'border border-slate-300 text-slate-600 hover:bg-slate-100'
-                                }`}
-                              >
-                                <span>{p.isPinnedTop ? '★ Pinned to Top' : '+ Pin to Top'}</span>
-                              </button>
-                            </td>
-
-                            <td className="p-3">
-                              <span
-                                className={`inline-block rounded px-2 py-0.5 text-[9px] font-bold ${
-                                  p.status === 'active'
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : p.status === 'sold'
-                                    ? 'bg-purple-100 text-purple-800'
-                                    : 'bg-slate-200 text-slate-700'
-                                }`}
-                              >
-                                {p.status.toUpperCase()}
-                              </span>
-                              <div className="text-[9px] text-slate-400 mt-0.5">
-                                {p.viewsCount} views • {p.whatsappClicks} WhatsApp
-                              </div>
-                            </td>
-
-                            <td className="p-3 text-right space-x-1.5 whitespace-nowrap">
-                              <button
-                                onClick={() => handleToggleSold(p)}
-                                className="rounded bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-200"
-                              >
-                                {p.status === 'sold' ? 'Mark Active' : 'Mark Sold'}
-                              </button>
-
-                              <button
-                                onClick={() => setSelectedProductForFlyer(p)}
-                                title="Generate WhatsApp Status Flyer"
-                                className="rounded p-1.5 text-slate-500 hover:bg-slate-100 hover:text-emerald-700"
-                              >
-                                <Share2 className="h-3.5 w-3.5" />
-                              </button>
-
-                              <button
-                                onClick={() => handleDeleteProduct(p.id, p.title)}
-                                title="Delete Listing"
-                                className="rounded p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ================= TAB 4: CONCIERGE UPLOAD FORM ================= */}
-            {activeTab === 'upload' && (
-              <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-6 shadow-2xs space-y-6">
-                <div className="border-b border-slate-200 pb-3">
-                  <span className="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                    Concierge Merchant Upload Terminal
-                  </span>
-                  <h2 className="mt-1 text-base sm:text-lg font-black text-slate-900">
-                    Publish Goods for Client & Record Listing Fee
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Select the registered client, attach product photos, set the price, and describe what problem it solves.
-                  </p>
-                </div>
-
-                <form onSubmit={handleUploadProduct} className="space-y-4">
-                  {/* Merchant Selection */}
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                        1. Select Merchant / Client *
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setShowAddMerchantModal(true)}
-                        className="text-[11px] font-bold text-emerald-700 hover:underline"
-                      >
-                        + Register New Client First
-                      </button>
-                    </div>
-
-                    <select
-                      value={prodSellerId}
-                      onChange={(e) => setProdSellerId(e.target.value)}
-                      required
-                      className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs focus:border-emerald-700 focus:outline-none"
-                    >
-                      {sellers.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.businessName || s.location}) - Phone: {s.phone}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Title & Category */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Product Title *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. 1000W All-in-One Solar Hybrid Generator & Inverter"
-                        value={prodTitle}
-                        onChange={(e) => setProdTitle(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 p-2.5 text-xs focus:border-emerald-700 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Category *
-                      </label>
-                      <select
-                        value={prodCategory}
-                        onChange={(e) => setProdCategory(e.target.value as Category)}
-                        className="w-full rounded-lg border border-slate-300 p-2.5 text-xs focus:border-emerald-700 focus:outline-none"
-                      >
-                        <option value="Solar & Power Backup">Solar & Power Backup</option>
-                        <option value="Water & Home Tech">Water & Home Tech</option>
-                        <option value="Phones & Computers">Phones & Computers</option>
-                        <option value="Agri & Food Processing">Agri & Food Processing</option>
-                        <option value="Fashion & Beauty">Fashion & Beauty</option>
-                        <option value="Vehicles & Auto">Vehicles & Auto</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Pricing */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Selling Price (UGX) *
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        placeholder="e.g. 1850000"
-                        value={prodPrice}
-                        onChange={(e) => setProdPrice(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 p-2.5 text-xs focus:border-emerald-700 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Original Price (UGX - Optional)
-                      </label>
-                      <input
-                        type="number"
-                        placeholder="e.g. 2200000"
-                        value={prodOriginalPrice}
-                        onChange={(e) => setProdOriginalPrice(e.target.value)}
-                        className="w-full rounded-lg border border-slate-300 p-2.5 text-xs focus:border-emerald-700 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Condition *
-                      </label>
-                      <select
-                        value={prodCondition}
-                        onChange={(e) => setProdCondition(e.target.value as ProductCondition)}
-                        className="w-full rounded-lg border border-slate-300 p-2.5 text-xs focus:border-emerald-700 focus:outline-none"
-                      >
-                        <option value="Brand New">Brand New</option>
-                        <option value="Like New">Like New</option>
-                        <option value="Gently Used">Gently Used</option>
-                        <option value="Refurbished">Refurbished</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Problem Solved */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      What Everyday Challenge Does This Solve in Uganda? *
+                    <label htmlFor="pinTopCheckbox" className="text-xs font-bold text-slate-800">
+                      Pin this item to the moving top hero banner on the client marketplace
                     </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Stops Umeme blackouts. Keeps Wi-Fi and lights running 24/7 without noisy generator fuel."
-                      value={prodProblemSolved}
-                      onChange={(e) => setProdProblemSolved(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 p-2.5 text-xs focus:border-emerald-700 focus:outline-none"
-                    />
                   </div>
-
-                  {/* Description */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Full Description & Inclusions
-                    </label>
-                    <textarea
-                      rows={3}
-                      placeholder="Include full details of cables, accessories, shop warranty, and inspection steps..."
-                      value={prodDescription}
-                      onChange={(e) => setProdDescription(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 p-2.5 text-xs focus:border-emerald-700 focus:outline-none"
-                    />
-                  </div>
-
-                  {/* Multiple Product Images */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs font-semibold text-slate-700">
-                        Product Photo URLs (Multi-Image Showcase)
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setProdImageUrls([...prodImageUrls, ''])}
-                        className="text-[11px] font-bold text-emerald-700 hover:underline"
-                      >
-                        + Add Another Image URL
-                      </button>
-                    </div>
-
-                    {prodImageUrls.map((url, idx) => (
-                      <div key={idx} className="flex gap-2">
-                        <input
-                          type="url"
-                          placeholder="https://images.unsplash.com/..."
-                          value={url}
-                          onChange={(e) => {
-                            const updated = [...prodImageUrls];
-                            updated[idx] = e.target.value;
-                            setProdImageUrls(updated);
-                          }}
-                          className="flex-1 rounded-lg border border-slate-300 p-2 text-xs focus:border-emerald-700 focus:outline-none"
-                        />
-                        {prodImageUrls.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => setProdImageUrls(prodImageUrls.filter((_, i) => i !== idx))}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Package & Top Banner Toggle */}
-                  <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3.5 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs font-bold text-slate-900 uppercase tracking-wider">
-                        Listing Package & Top Adverts Banner
-                      </label>
-                      <span className="text-xs font-bold text-amber-900">
-                        Listing Fee: {formatPrice(prodListingFee)}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setProdListingPlan('Basic');
-                          setProdListingFee(15000);
-                          setProdIsPinnedTop(false);
-                        }}
-                        className={`rounded-lg p-2.5 text-left border transition ${
-                          prodListingPlan === 'Basic'
-                            ? 'border-emerald-700 bg-white shadow-2xs'
-                            : 'border-slate-200 bg-white/70 hover:bg-white'
-                        }`}
-                      >
-                        <p className="text-xs font-bold text-slate-900">Basic Listing</p>
-                        <p className="text-[10px] text-slate-500">UGX 15,000 / month</p>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setProdListingPlan('Featured');
-                          setProdListingFee(25000);
-                          setProdIsPinnedTop(false);
-                        }}
-                        className={`rounded-lg p-2.5 text-left border transition ${
-                          prodListingPlan === 'Featured'
-                            ? 'border-emerald-700 bg-white shadow-2xs'
-                            : 'border-slate-200 bg-white/70 hover:bg-white'
-                        }`}
-                      >
-                        <p className="text-xs font-bold text-slate-900">Featured Priority</p>
-                        <p className="text-[10px] text-slate-500">UGX 25,000 / month</p>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setProdListingPlan('VIP');
-                          setProdListingFee(35000);
-                          setProdIsPinnedTop(true);
-                        }}
-                        className={`rounded-lg p-2.5 text-left border transition ${
-                          prodListingPlan === 'VIP'
-                            ? 'border-emerald-700 bg-white shadow-2xs'
-                            : 'border-slate-200 bg-white/70 hover:bg-white'
-                        }`}
-                      >
-                        <p className="text-xs font-bold text-slate-900">★ VIP Spotlight Advert</p>
-                        <p className="text-[10px] text-slate-500">UGX 35,000 (Top Banner)</p>
-                      </button>
-                    </div>
-
-                    <div className="pt-1 flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="pinTopCheckbox"
-                        checked={prodIsPinnedTop}
-                        onChange={(e) => setProdIsPinnedTop(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-700"
-                      />
-                      <label htmlFor="pinTopCheckbox" className="text-xs font-bold text-slate-800">
-                        Pin this item to the moving top hero banner on the client marketplace
-                      </label>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={actionLoading === 'upload-prod'}
-                    className="w-full rounded-lg bg-emerald-800 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-emerald-900 transition disabled:opacity-50 shadow-xs"
-                  >
-                    {actionLoading === 'upload-prod' ? 'Publishing Product...' : 'Publish Product to Live Marketplace'}
-                  </button>
-                </form>
-              </div>
-            )}
-
-            {/* ================= TAB 5: ORDERS & LEADS ================= */}
-            {activeTab === 'orders' && (
-              <div className="space-y-4">
-                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
-                  <h2 className="text-base font-black text-slate-900">Buyer Inquiries & Callback Reservations</h2>
-                  <p className="text-xs text-slate-500">
-                    Buyers who requested concierge callbacks or shop reservations.
-                  </p>
                 </div>
 
-                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                        <th className="p-3">Order / Lead</th>
-                        <th className="p-3">Product</th>
-                        <th className="p-3">Buyer & Location</th>
-                        <th className="p-3">Notes</th>
-                        <th className="p-3 text-right">Status</th>
+                <button
+                  type="submit"
+                  disabled={actionLoading === 'upload-prod'}
+                  className="w-full rounded-xl bg-blue-600 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-blue-700 transition shadow-xs disabled:opacity-50"
+                >
+                  {actionLoading === 'upload-prod' ? 'Publishing...' : 'Publish Product to Live Marketplace'}
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* ================= TAB 5: LEADS & INQUIRIES ================= */}
+          {activeNav === 'orders' && (
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-base font-black text-slate-900">Customer Reservations & Leads</h2>
+                <p className="text-xs text-slate-500">
+                  Buyer callback requests and verified reservation leads.
+                </p>
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                      <th className="p-3.5">ID</th>
+                      <th className="p-3.5">Product Title</th>
+                      <th className="p-3.5">Buyer Contacts & Location</th>
+                      <th className="p-3.5">Notes</th>
+                      <th className="p-3.5 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {orders.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-slate-400">
+                          No buyer leads recorded yet.
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {orders.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="p-8 text-center text-slate-400">
-                            No reservations yet.
+                    ) : (
+                      orders.map((ord) => (
+                        <tr key={ord.id} className="hover:bg-slate-50 transition">
+                          <td className="p-3.5 font-mono text-[11px] text-slate-500">{ord.id}</td>
+                          <td className="p-3.5">
+                            <p className="font-bold text-slate-900">{ord.productTitle}</p>
+                            <p className="text-[10px] text-slate-500">{formatPrice(ord.productPrice)}</p>
+                          </td>
+                          <td className="p-3.5">
+                            <p className="font-bold text-slate-900">{ord.buyerName}</p>
+                            <p className="font-mono text-[10px] text-slate-600">{ord.buyerPhone}</p>
+                            <p className="text-[10px] text-slate-400">{ord.buyerLocation}</p>
+                          </td>
+                          <td className="p-3.5 text-[11px] text-slate-600">{ord.notes || '—'}</td>
+                          <td className="p-3.5 text-right">
+                            <span className="rounded bg-emerald-100 px-2 py-0.5 text-[9px] font-black text-emerald-800">
+                              {ord.status.toUpperCase()}
+                            </span>
                           </td>
                         </tr>
-                      ) : (
-                        orders.map((ord) => (
-                          <tr key={ord.id} className="hover:bg-slate-50 transition">
-                            <td className="p-3 font-mono text-[11px] text-slate-500">{ord.id}</td>
-                            <td className="p-3">
-                              <div className="font-bold text-slate-900">{ord.productTitle}</div>
-                              <div className="text-[10px] text-slate-500">{formatPrice(ord.productPrice)}</div>
-                            </td>
-                            <td className="p-3">
-                              <div className="font-semibold text-slate-900">{ord.buyerName}</div>
-                              <div className="text-[10px] text-slate-500 font-mono">{ord.buyerPhone}</div>
-                              <div className="text-[10px] text-slate-400">{ord.buyerLocation}</div>
-                            </td>
-                            <td className="p-3 text-[11px] text-slate-600 max-w-xs">{ord.notes || '—'}</td>
-                            <td className="p-3 text-right">
-                              <span className="rounded bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800">
-                                {ord.status.toUpperCase()}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </>
-        )}
-      </main>
+            </div>
+          )}
+        </main>
+      </div>
 
-      {/* Modal: Register New Merchant */}
+      {/* ================= MODAL: REGISTER NEW MERCHANT ================= */}
       {showAddMerchantModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
@@ -1638,7 +1772,7 @@ export default function AdminPage() {
                   placeholder="e.g. Kato Samuel Raymond"
                   value={newMerchantName}
                   onChange={(e) => setNewMerchantName(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-emerald-700 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
                 />
               </div>
 
@@ -1651,7 +1785,7 @@ export default function AdminPage() {
                   placeholder="e.g. Kato Solar & Electricals Ltd"
                   value={newMerchantBusiness}
                   onChange={(e) => setNewMerchantBusiness(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-emerald-700 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
                 />
               </div>
 
@@ -1666,7 +1800,7 @@ export default function AdminPage() {
                     placeholder="+256772123456"
                     value={newMerchantPhone}
                     onChange={(e) => setNewMerchantPhone(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-emerald-700 focus:outline-none"
+                    className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
                   />
                 </div>
 
@@ -1679,7 +1813,7 @@ export default function AdminPage() {
                     placeholder="256772123456"
                     value={newMerchantWhatsapp}
                     onChange={(e) => setNewMerchantWhatsapp(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-emerald-700 focus:outline-none"
+                    className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
                   />
                 </div>
               </div>
@@ -1694,7 +1828,7 @@ export default function AdminPage() {
                   placeholder="e.g. Pioneer Mall, 1st Floor Shop 14, Kampala Road"
                   value={newMerchantLocation}
                   onChange={(e) => setNewMerchantLocation(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-emerald-700 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
                 />
               </div>
 
@@ -1706,7 +1840,7 @@ export default function AdminPage() {
                   <select
                     value={newMerchantPlan}
                     onChange={(e) => setNewMerchantPlan(e.target.value as ListingPlan)}
-                    className="w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-emerald-700 focus:outline-none"
+                    className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
                   >
                     <option value="Basic">Basic (UGX 15,000)</option>
                     <option value="Featured">Featured (UGX 25,000)</option>
@@ -1721,7 +1855,7 @@ export default function AdminPage() {
                   <select
                     value={newMerchantDurationDays}
                     onChange={(e) => setNewMerchantDurationDays(Number(e.target.value))}
-                    className="w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-emerald-700 focus:outline-none"
+                    className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
                   >
                     <option value={30}>30 Days (1 Month)</option>
                     <option value={60}>60 Days (2 Months)</option>
@@ -1736,7 +1870,7 @@ export default function AdminPage() {
                   id="photographyCheckbox"
                   checked={newMerchantPhotography}
                   onChange={(e) => setNewMerchantPhotography(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-emerald-700"
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600"
                 />
                 <label htmlFor="photographyCheckbox" className="text-xs font-semibold text-slate-700">
                   Photography service booked (We will visit shop or take photos)
@@ -1752,7 +1886,7 @@ export default function AdminPage() {
                   placeholder="e.g. Paid cash UGX 25,000 on visit. Verified ID card."
                   value={newMerchantNotes}
                   onChange={(e) => setNewMerchantNotes(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-emerald-700 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
                 />
               </div>
 
@@ -1760,14 +1894,14 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={() => setShowAddMerchantModal(false)}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading === 'create-merchant'}
-                  className="rounded-lg bg-emerald-800 px-4 py-2 text-xs font-black text-white hover:bg-emerald-900 shadow-xs"
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-black text-white hover:bg-blue-700 shadow-xs"
                 >
                   {actionLoading === 'create-merchant' ? 'Registering...' : 'Register Merchant'}
                 </button>
@@ -1777,7 +1911,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* WhatsApp Status Flyer Generator Modal */}
+      {/* ================= MODAL: FLYER GENERATOR ================= */}
       {selectedProductForFlyer && (
         <FlyerModal
           isOpen={true}
