@@ -43,19 +43,37 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Center Trust Value Badges (Desktop) */}
-        <div className="hidden lg:flex items-center gap-3 text-[11px] text-slate-600 font-medium">
-          <span className="flex items-center gap-1">
-            <span className="text-emerald-700 font-bold">●</span> Pioneer Mall & Acacia Verified
-          </span>
-          <span className="text-slate-300">|</span>
-          <span className="flex items-center gap-1">
-            <span className="text-emerald-700 font-bold">●</span> Chat Seller on WhatsApp
-          </span>
-          <span className="text-slate-300">|</span>
-          <span className="flex items-center gap-1">
-            <span className="text-emerald-700 font-bold">●</span> Real In-Person Inspection
-          </span>
+        {/* Universal Desktop Search Bar in Navbar */}
+        <div className="hidden sm:flex flex-1 max-w-lg mx-3 lg:mx-6">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (pathname !== '/') router.push('/');
+            }}
+            className="relative w-full flex items-center"
+          >
+            <Search className="h-4 w-4 text-emerald-800 absolute left-3 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search solar generators, booster pumps, Starlink, iPhones..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (pathname !== '/') router.push('/');
+              }}
+              className="w-full rounded-xl border border-slate-300 bg-slate-50 py-1.5 pl-9 pr-8 text-xs text-slate-900 placeholder-slate-400 focus:border-emerald-700 focus:bg-white focus:outline-none shadow-2xs font-medium"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 text-xs font-bold text-slate-400 hover:text-slate-700 p-1"
+                aria-label="Clear search"
+              >
+                ✕
+              </button>
+            )}
+          </form>
         </div>
 
         {/* Navigation CTAs */}
