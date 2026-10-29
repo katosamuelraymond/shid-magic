@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { SearchProvider } from "@/context/SearchContext";
 
 export const metadata: Metadata = {
   title: "ShidMagic | Curated & Verified Merchant Marketplace",
@@ -16,9 +17,11 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col font-sans bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
-        <Navbar />
-        <div className="flex-1">{children}</div>
-        <Footer />
+        <SearchProvider>
+          <Navbar />
+          <div className="flex-1">{children}</div>
+          <Footer />
+        </SearchProvider>
       </body>
     </html>
   );

@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Search } from 'lucide-react';
+import { Search, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 import { Product, Category } from '@/lib/types';
 import ProductCard from './ProductCard';
 import { formatPrice } from '@/lib/utils';
+import { useMarketplaceSearch } from '@/context/SearchContext';
 
 interface CatalogSectionProps {
   initialProducts: Product[];
@@ -17,7 +18,8 @@ export default function CatalogSection({
   selectedCategory,
   onSelectCategory,
 }: CatalogSectionProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const { searchQuery, setSearchQuery } = useMarketplaceSearch();
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [conditionFilter, setConditionFilter] = useState<string>('All');
   const [locationFilter, setLocationFilter] = useState<string>('All');
   const [priceRange, setPriceRange] = useState<string>('All');
@@ -147,12 +149,168 @@ export default function CatalogSection({
 
   return (
     <div className="space-y-4">
-      {/* SINGLE AUTHORITATIVE STICKY Search & Filter Bar */}
-      <div className="sticky top-[78px] z-30 rounded-xl border border-slate-300 bg-white p-3 shadow-md space-y-2.5 transition">
+      {/* ================= 1. MOBILE COMPACT STICKY BAR (sm:hidden) ================= */}
+      {/* Takes minimal vertical space (~42px when closed) so products are immediately visible on phones */}
+      <div className="sm:hidden sticky top-[108px] z-30 -mx-3 px-3 py-2 bg-white/95 backdrop-blur-xs border-y border-slate-200 shadow-2xs space-y-2">
+        {/* Row 1: Fast Horizontal Category Pill Strip */}
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+          {categoriesList.map((cat) => {
+            const isSelected = selectedCategory === cat.name;
+            return (
+              <button
+                key={cat.name}
+                onClick={() => onSelectCategory(cat.name)}
+                className={`flex-shrink-0 flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition whitespace-nowrap ${
+                  isSelected
+                    ? 'bg-emerald-800 text-white shadow-2xs'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <span>{cat.name === 'All' ? 'All Goods' : cat.name}</span>
+                <span
+                  className={`text-[9px] rounded-full px-1.5 py-0.2 ${
+                    isSelected ? 'bg-emerald-950 text-white' : 'bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  {cat.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Row 2: Results Count & Compact "Filters & Sort" Toggle */}
+        <div className="flex items-center justify-between pt-0.5 text-xs">
+          <span className="text-[11px] font-semibold text-slate-500">
+            {filteredProducts.length} verified item{filteredProducts.length === 1 ? '' : 's'}
+          </span>
+
+          <div className="flex items-center gap-2">
+            {hasActiveFilters && (
+              <button
+                onClick={resetAllFilters}
+                className="text-[11px] font-bold text-rose-600 hover:underline"
+              >
+                Reset
+              </button>
+            )}
+
+            <button
+              onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition ${
+                mobileFiltersOpen || hasActiveFilters
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <SlidersHorizontal className="h-3 w-3" />
+              <span>Filters & Sort</span>
+              {hasActiveFilters && <span className="h-1.5 w-1.5 rounded-full bg-emerald-600"></span>}
+              {mobileFiltersOpen ? (
+                <ChevronUp className="h-3 w-3" />
+              ) : (
+                <ChevronDown className="h-3 w-3" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Expandable Mobile Secondary Filters (Only shown when user taps 'Filters & Sort') */}
+        {mobileFiltersOpen && (
+          <div className="pt-2 border-t border-slate-100 space-y-2.5 animate-in fade-in slide-in-from-top-1 duration-150">
+            {/* Sort & Condition Dropdowns */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                  Sort Order
+                </label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="w-full rounded-lg border border-slate-300 bg-slate-50 py-1.5 px-2 text-xs font-semibold text-slate-800 focus:outline-none"
+                >
+                  <option value="popular">Most Popular</option>
+                  <option value="newest">Newest First</option>
+                  <option value="price-low">Price: Low to High</option>
+                  <option value="price-high">Price: High to Low</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                  Area / Mall
+                </label>
+                <select
+                  value={locationFilter}
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-slate-50 py-1.5 px-2 text-xs font-semibold text-slate-800 focus:outline-none"
+                >
+                  <option value="All">All Kampala</option>
+                  {locations.map((loc) => (
+                    <option key={loc} value={loc}>
+                      {loc}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Price Filter Chips */}
+            <div>
+              <span className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                Price Budget
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { label: 'All Prices', val: 'All' },
+                  { label: '< 500k', val: 'under500k' },
+                  { label: '500k - 2M', val: '500k-2m' },
+                  { label: '> 2M', val: 'above2m' },
+                ].map((p) => (
+                  <button
+                    key={p.val}
+                    onClick={() => setPriceRange(p.val)}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition ${
+                      priceRange === p.val
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Condition Chips */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Condition:</span>
+              <div className="flex gap-1.5">
+                {['All', 'Brand New', 'Like New', 'Gently Used'].map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setConditionFilter(c)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                      conditionFilter === c
+                        ? 'bg-emerald-800 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ================= 2. DESKTOP STICKY FILTER BAR (hidden sm:block) ================= */}
+      <div className="hidden sm:block sticky top-[78px] z-30 rounded-xl border border-slate-300 bg-white p-3 shadow-md space-y-2.5 transition">
         {/* Row 1: Unified Search input + Category Dropdown + Sort */}
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+        <div className="grid grid-cols-12 gap-2 items-center">
           {/* Search Box (6 cols) */}
-          <div className="sm:col-span-6 relative">
+          <div className="col-span-6 relative">
             <Search className="h-4 w-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
             <input
               type="text"
@@ -172,7 +330,7 @@ export default function CatalogSection({
           </div>
 
           {/* Category Dropdown (3 cols) */}
-          <div className="sm:col-span-3">
+          <div className="col-span-3">
             <select
               value={selectedCategory}
               onChange={(e) => onSelectCategory(e.target.value)}
@@ -190,7 +348,7 @@ export default function CatalogSection({
           </div>
 
           {/* Sort Selector (3 cols) */}
-          <div className="sm:col-span-3">
+          <div className="col-span-3">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
