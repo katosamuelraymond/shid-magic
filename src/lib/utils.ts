@@ -39,15 +39,15 @@ export function buildSellerReportWhatsAppLink(seller: {
   whatsappLeads: number;
 }): string {
   const cleanPhone = seller.phone.replace(/[^0-9]/g, '');
-  const message = `✨ *ShidMagic Uganda Merchant Performance Report* ✨
+  const message = `*ShidMagic Uganda Merchant Performance Report*
 
 Hello ${seller.name}, here is the performance update for your active listings on ShidMagic:
 
-📦 Active Listings: ${seller.listingsCount}
-👀 Buyer Page Views: ${seller.views.toLocaleString()}
-💬 Direct WhatsApp Connections: ${seller.whatsappLeads}
+• Active Listings: ${seller.listingsCount}
+• Real Buyer Page Views: ${seller.views.toLocaleString()}
+• Direct WhatsApp Buyer Leads: ${seller.whatsappLeads}
 
-Buyers in Kampala & Upcountry are viewing your goods! Would you like to feature another item or renew your existing listings today?`;
+Buyers in Kampala and across Uganda are viewing your stock. Reply here to feature more goods or manage your shop subscription.`;
 
   return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 }

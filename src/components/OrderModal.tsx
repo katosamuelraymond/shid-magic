@@ -210,7 +210,7 @@ export default function OrderModal({ product, isOpen, onClose }: OrderModalProps
               </div>
 
               <p className="text-[11px] text-center text-neutral-500 dark:text-neutral-400">
-                🔒 Safe shopping. No upfront payment required on this form. Inspect item before final payment.
+                Safe shopping: No upfront payment required on this form. Inspect item before final payment.
               </p>
             </form>
           </div>

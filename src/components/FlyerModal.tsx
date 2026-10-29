@@ -18,15 +18,15 @@ export default function FlyerModal({ product, isOpen, onClose }: FlyerModalProps
 
   if (!isOpen) return null;
 
-  const promoText = `🔥 *AVAILABLE ON SHIDMAGIC* 🔥
-📦 *${product.title}*
-💰 *Price: ${formatPrice(product.price)}* ${product.originalPrice ? `(~${formatPrice(product.originalPrice)}~)` : ''}
-✅ Condition: ${product.condition}
-📍 Location: ${product.sellerLocation}
-🛡️ *Verified Seller: ${product.sellerName}*
+  const promoText = `*AVAILABLE ON SHIDMAGIC UGANDA*
+*${product.title}*
+Price: ${formatPrice(product.price)} ${product.originalPrice ? `(~${formatPrice(product.originalPrice)}~)` : ''}
+Condition: ${product.condition}
+Location: ${product.sellerLocation}
+Verified Seller: ${product.sellerName}
 
-📞 Contact / WhatsApp: ${product.sellerPhone}
-🔗 View full photos & details: https://shidmagic.com/product/${product.id}`;
+Contact / WhatsApp: ${product.sellerPhone}
+View full photos & details: https://shidmagic.com/product/${product.id}`;
 
   const handleCopyText = () => {
     navigator.clipboard.writeText(promoText);

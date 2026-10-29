@@ -7,13 +7,13 @@ import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { useMarketplaceSearch } from '@/context/SearchContext';
 
 const CATEGORIES = [
-  { name: 'All', label: 'All Goods', icon: '✨' },
-  { name: 'Solar & Power Backup', label: 'Solar & Power Backup', icon: '☀️' },
-  { name: 'Water & Home Tech', label: 'Water & Home Tech', icon: '💧' },
-  { name: 'Phones & Computers', label: 'Phones & Computers', icon: '📱' },
-  { name: 'Agri & Food Processing', label: 'Agri & Food Processing', icon: '🌾' },
-  { name: 'Fashion & Beauty', label: 'Fashion & Beauty', icon: '👗' },
-  { name: 'Vehicles & Auto', label: 'Vehicles & Auto', icon: '🚗' },
+  { name: 'All', label: 'All Goods' },
+  { name: 'Solar & Power Backup', label: 'Solar & Power Backup' },
+  { name: 'Water & Home Tech', label: 'Water & Home Tech' },
+  { name: 'Phones & Computers', label: 'Phones & Computers' },
+  { name: 'Agri & Food Processing', label: 'Agri & Food Processing' },
+  { name: 'Fashion & Beauty', label: 'Fashion & Beauty' },
+  { name: 'Vehicles & Auto', label: 'Vehicles & Auto' },
 ];
 
 export default function Navbar() {
@@ -241,8 +241,8 @@ export default function Navbar() {
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
-                      <span className="text-base">{cat.icon}</span>
-                      <span className="text-xs">{cat.label}</span>
+                      <span className={`h-2 w-2 rounded-full ${isSelected ? 'bg-emerald-700' : 'bg-slate-300'}`} />
+                      <span className="text-xs font-semibold">{cat.label}</span>
                     </div>
                     {isSelected && (
                       <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-800 text-white text-xs font-bold">
