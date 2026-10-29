@@ -32,22 +32,22 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 pt-2.5 sm:pt-3.5 pb-5 sm:pb-6">
         {/* Main Stage Grid - Locked uniform height across all slides */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8 items-center lg:min-h-[300px]">
-          {/* 1. On Mobile: Large, Bold Fitted Product Image with fixed height */}
+          {/* 1. On Mobile: Large, Bold Fitted Product Image occupying the whole card space */}
           <div className="lg:hidden w-full">
             <Link
               href={`/product/${current.id}`}
-              className="relative h-[200px] w-full overflow-hidden rounded-xl bg-white border border-emerald-700/60 block shadow-md p-2"
+              className="relative h-[220px] sm:h-[260px] w-full overflow-hidden rounded-2xl bg-slate-900 border border-emerald-700/60 block shadow-md group"
             >
               <img
                 src={current.images[0]}
                 alt={current.title}
                 key={current.id}
-                className="h-full w-full object-contain"
+                className="h-full w-full object-cover group-hover:scale-102 transition duration-500"
               />
-              <span className="absolute bottom-2 left-2 rounded bg-black/80 px-2 py-0.5 text-[10px] font-bold text-white">
+              <span className="absolute bottom-2.5 left-2.5 rounded-lg bg-black/85 px-2.5 py-1 text-[11px] font-bold text-white shadow border border-emerald-800">
                 Tap to View Photos
               </span>
-              <span className="absolute top-2 right-2 rounded bg-amber-400 px-2 py-0.5 text-[10px] font-black text-slate-950 shadow">
+              <span className="absolute top-2.5 right-2.5 rounded-lg bg-amber-400 px-2.5 py-1 text-xs font-black text-slate-950 shadow">
                 {formatPrice(current.price)}
               </span>
             </Link>
@@ -120,20 +120,23 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
             </div>
           </div>
 
-          {/* 3. Desktop Large Image Canvas (5 Cols Desktop) - Fixed 290x290 box identical to iPhone slide */}
-          <div className="hidden lg:flex lg:col-span-5 justify-center">
+          {/* 3. Desktop Large Image Canvas (5 Cols Desktop) - Occupies the entire 5-column slot */}
+          <div className="hidden lg:flex lg:col-span-5 h-[290px] w-full">
             <Link
               href={`/product/${current.id}`}
-              className="relative h-[290px] w-[290px] rounded-xl bg-white p-3.5 shadow-lg hover:scale-101 transition block group border border-emerald-800/40"
+              className="relative h-full w-full rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition duration-300 block group border border-emerald-700/60 bg-slate-900"
             >
               <img
                 src={current.images[0]}
                 alt={current.title}
                 key={current.id}
-                className="h-full w-full object-contain"
+                className="h-full w-full object-cover group-hover:scale-105 transition duration-500"
               />
-              <div className="absolute bottom-2.5 left-2.5 bg-slate-900 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow">
-                Click to View Photos
+              <div className="absolute bottom-3 left-3 bg-black/85 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow border border-emerald-800">
+                Click to Inspect & View Photos
+              </div>
+              <div className="absolute top-3 right-3 bg-amber-400 text-slate-950 text-xs font-black px-3 py-1.5 rounded-lg shadow">
+                {formatPrice(current.price)}
               </div>
             </Link>
           </div>
