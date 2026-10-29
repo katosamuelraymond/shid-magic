@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Production configuration for Dokploy Docker deployment
 };
 
 export default nextConfig;
