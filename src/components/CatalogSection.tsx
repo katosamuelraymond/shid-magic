@@ -17,7 +17,20 @@ export default function CatalogSection({
   selectedCategory,
   onSelectCategory,
 }: CatalogSectionProps) {
-  const { searchQuery, setSearchQuery } = useMarketplaceSearch();
+  const {
+    searchQuery,
+    setSearchQuery,
+    selectedCategory: contextCategory,
+    setSelectedCategory: setContextCategory,
+  } = useMarketplaceSearch();
+
+  // Keep prop & context in sync
+  const activeCategory = contextCategory !== 'All' ? contextCategory : selectedCategory;
+  const handleCategorySelect = (cat: string) => {
+    setContextCategory(cat);
+    onSelectCategory(cat);
+  };
+
   const [conditionFilter, setConditionFilter] = useState<string>('All');
   const [locationFilter, setLocationFilter] = useState<string>('All');
   const [priceRange, setPriceRange] = useState<string>('All');
@@ -80,9 +93,9 @@ export default function CatalogSection({
     }
 
     // Category
-    if (selectedCategory && selectedCategory !== 'All') {
+    if (activeCategory && activeCategory !== 'All') {
       result = result.filter(
-        (p) => p.category.toLowerCase() === selectedCategory.toLowerCase()
+        (p) => p.category.toLowerCase() === activeCategory.toLowerCase()
       );
     }
 
@@ -122,7 +135,7 @@ export default function CatalogSection({
   }, [
     initialProducts,
     searchQuery,
-    selectedCategory,
+    activeCategory,
     conditionFilter,
     locationFilter,
     priceRange,
@@ -131,14 +144,14 @@ export default function CatalogSection({
 
   const hasActiveFilters =
     searchQuery.trim() !== '' ||
-    selectedCategory !== 'All' ||
+    activeCategory !== 'All' ||
     conditionFilter !== 'All' ||
     locationFilter !== 'All' ||
     priceRange !== 'All';
 
   const resetAllFilters = () => {
     setSearchQuery('');
-    onSelectCategory('All');
+    handleCategorySelect('All');
     setConditionFilter('All');
     setLocationFilter('All');
     setPriceRange('All');
@@ -147,17 +160,17 @@ export default function CatalogSection({
 
   return (
     <div className="space-y-4">
-      {/* ================= ONLY ONE UNIFIED STICKY CATEGORY & FILTER BAR ================= */}
-      {/* Search is uniquely in Navbar. No duplicate search bar or duplicate filters anywhere. */}
-      <div className="sticky top-[106px] sm:top-[78px] z-30 rounded-xl border border-slate-200 bg-white/95 backdrop-blur-xs p-2.5 shadow-2xs space-y-2 transition">
+      {/* ================= DESKTOP STICKY CATEGORY & FILTER BAR (hidden sm:block) ================= */}
+      {/* Hidden completely on mobile so phone screens have ZERO sticky clutter and maximum product visibility */}
+      <div className="hidden sm:block sticky top-[78px] z-30 rounded-xl border border-slate-200 bg-white/95 backdrop-blur-xs p-2.5 shadow-2xs space-y-2 transition">
         {/* Row 1: Fast Horizontal Category Pill Strip */}
         <div className="flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
           {categoriesList.map((cat) => {
-            const isSelected = selectedCategory === cat.name;
+            const isSelected = activeCategory === cat.name;
             return (
               <button
                 key={cat.name}
-                onClick={() => onSelectCategory(cat.name)}
+                onClick={() => handleCategorySelect(cat.name)}
                 className={`flex-shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold transition whitespace-nowrap ${
                   isSelected
                     ? 'bg-emerald-800 text-white shadow-2xs'
@@ -277,13 +290,29 @@ export default function CatalogSection({
       {/* Results Counter Header */}
       <div className="flex items-center justify-between px-1">
         <div>
-          <h2 className="text-xs sm:text-sm font-bold text-slate-900">
-            {searchQuery
-              ? `Results for "${searchQuery}"`
-              : selectedCategory === 'All'
-              ? 'All Verified Listings'
-              : selectedCategory}
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs sm:text-sm font-bold text-slate-900">
+              {searchQuery
+                ? `Results for "${searchQuery}"`
+                : activeCategory === 'All'
+                ? 'All Verified Listings'
+                : activeCategory}
+            </h2>
+            {/* Mobile Active Category Pill (With 1-click clear) */}
+            {activeCategory !== 'All' && (
+              <span className="sm:hidden inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.2 text-[10px] font-bold text-emerald-900">
+                <span>{activeCategory}</span>
+                <button
+                  type="button"
+                  onClick={() => handleCategorySelect('All')}
+                  className="text-emerald-700 hover:text-emerald-950 font-black ml-0.5"
+                  aria-label="Clear active category"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+          </div>
           <p className="text-[11px] text-slate-500">
             Showing <strong className="text-slate-800">{filteredProducts.length}</strong> verified {filteredProducts.length === 1 ? 'solution' : 'solutions'} in Kampala
           </p>

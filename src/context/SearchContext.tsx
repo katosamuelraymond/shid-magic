@@ -7,6 +7,8 @@ interface SearchContextType {
   setSearchQuery: (query: string) => void;
   selectedCategory: string;
   setSelectedCategory: (cat: string) => void;
+  isFilterDrawerOpen: boolean;
+  setIsFilterDrawerOpen: (open: boolean) => void;
 }
 
 const SearchContext = createContext<SearchContextType>({
@@ -14,11 +16,14 @@ const SearchContext = createContext<SearchContextType>({
   setSearchQuery: () => {},
   selectedCategory: 'All',
   setSelectedCategory: () => {},
+  isFilterDrawerOpen: false,
+  setIsFilterDrawerOpen: () => {},
 });
 
 export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
 
   return (
     <SearchContext.Provider
@@ -27,6 +32,8 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
         setSearchQuery,
         selectedCategory,
         setSelectedCategory,
+        isFilterDrawerOpen,
+        setIsFilterDrawerOpen,
       }}
     >
       {children}

@@ -3,13 +3,30 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Search } from 'lucide-react';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { useMarketplaceSearch } from '@/context/SearchContext';
+
+const CATEGORIES = [
+  { name: 'All', label: 'All Goods', icon: '✨' },
+  { name: 'Solar & Power Backup', label: 'Solar & Power Backup', icon: '☀️' },
+  { name: 'Water & Home Tech', label: 'Water & Home Tech', icon: '💧' },
+  { name: 'Phones & Computers', label: 'Phones & Computers', icon: '📱' },
+  { name: 'Agri & Food Processing', label: 'Agri & Food Processing', icon: '🌾' },
+  { name: 'Fashion & Beauty', label: 'Fashion & Beauty', icon: '👗' },
+  { name: 'Vehicles & Auto', label: 'Vehicles & Auto', icon: '🚗' },
+];
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { searchQuery, setSearchQuery } = useMarketplaceSearch();
+  const {
+    searchQuery,
+    setSearchQuery,
+    selectedCategory,
+    setSelectedCategory,
+    isFilterDrawerOpen,
+    setIsFilterDrawerOpen,
+  } = useMarketplaceSearch();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Do not render the public marketplace navbar inside the admin dashboard shell
@@ -104,8 +121,8 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Integrated Search Bar (Always visible on phone screens in the navbar) */}
-      <div className="sm:hidden border-t border-slate-100 bg-white px-3 py-2">
+      {/* Mobile Integrated Search Bar with Category Filter Icon */}
+      <div className="sm:hidden border-t border-slate-100 bg-white px-3 py-2 flex items-center gap-2">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -113,12 +130,12 @@ export default function Navbar() {
               router.push('/');
             }
           }}
-          className="relative flex items-center"
+          className="relative flex-1 flex items-center"
         >
           <Search className="h-4 w-4 text-emerald-800 absolute left-3 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search solar, Starlink, iPhones, water pumps..."
+            placeholder="Search solar, Starlink, iPhones..."
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -139,9 +156,27 @@ export default function Navbar() {
             </button>
           )}
         </form>
+
+        {/* Filter Icon Button (Tapping brings categories) */}
+        <button
+          type="button"
+          onClick={() => setIsFilterDrawerOpen(true)}
+          className={`p-2 rounded-xl border flex items-center justify-center transition flex-shrink-0 relative ${
+            selectedCategory !== 'All'
+              ? 'bg-emerald-800 border-emerald-900 text-white shadow-2xs'
+              : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100'
+          }`}
+          aria-label="Filter by category"
+          title="Browse categories"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          {selectedCategory !== 'All' && (
+            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 rounded-full bg-amber-400 ring-2 ring-white" />
+          )}
+        </button>
       </div>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer for site links */}
       {mobileMenuOpen && (
         <div className="sm:hidden border-t border-slate-200 bg-white p-3 space-y-2 shadow-lg">
           <div className="flex flex-col gap-1.5">
@@ -160,6 +195,87 @@ export default function Navbar() {
             >
               Merchant Live Views Portal
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Category Filter Drawer (Bottom Sheet) */}
+      {isFilterDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-xs sm:hidden">
+          <div
+            className="fixed inset-0"
+            onClick={() => setIsFilterDrawerOpen(false)}
+          />
+          <div className="relative w-full rounded-t-2xl bg-white p-4 shadow-2xl border-t border-slate-200 max-h-[85vh] overflow-y-auto space-y-4 animate-in slide-in-from-bottom duration-200">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-sm font-black text-slate-900">Browse by Category</h3>
+                <p className="text-[11px] text-slate-500">Select a category to filter listings instantly</p>
+              </div>
+              <button
+                onClick={() => setIsFilterDrawerOpen(false)}
+                className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                aria-label="Close category filter"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Categories List */}
+            <div className="space-y-1.5">
+              {CATEGORIES.map((cat) => {
+                const isSelected = selectedCategory === cat.name;
+                return (
+                  <button
+                    key={cat.name}
+                    onClick={() => {
+                      setSelectedCategory(cat.name);
+                      setIsFilterDrawerOpen(false);
+                      if (pathname !== '/') router.push('/');
+                    }}
+                    className={`w-full flex items-center justify-between p-3 rounded-xl border text-left transition ${
+                      isSelected
+                        ? 'bg-emerald-50 border-emerald-600 text-emerald-950 font-bold'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-base">{cat.icon}</span>
+                      <span className="text-xs">{cat.label}</span>
+                    </div>
+                    {isSelected && (
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-800 text-white text-xs font-bold">
+                        ✓
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="pt-2 flex items-center gap-2 border-t border-slate-100">
+              {selectedCategory !== 'All' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory('All');
+                    setIsFilterDrawerOpen(false);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Reset to All
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsFilterDrawerOpen(false)}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-800 text-xs font-black text-white hover:bg-emerald-900 shadow-2xs"
+              >
+                View Products
+              </button>
+            </div>
           </div>
         </div>
       )}
