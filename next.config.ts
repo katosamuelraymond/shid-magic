@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Standard PostCSS is used via @tailwindcss/postcss
+  output: "standalone",
 };
 
 export default nextConfig;
