@@ -4,23 +4,41 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get('host') || '';
-  const isAdminSubdomain = host.startsWith('admin.');
+  
+  // Clean host from port (e.g., "admin.localhost:3000" -> "admin.localhost", "admin.shidmagic.com" -> "admin.shidmagic.com")
+  const hostname = host.split(':')[0].toLowerCase();
+  const isAdminSubdomain = hostname.startsWith('admin.');
 
   // Check auth session cookie
   const authSession = request.cookies.get('shid_admin_session')?.value;
   const isAuthenticated = authSession === 'authenticated_admin_shidmagic_2026';
 
-  // 1. If accessing via admin subdomain (e.g. admin.shidmagic.com or admin.localhost:3000)
+  // 1. SUBDOMAIN ROUTING: When visiting via admin.* subdomain
   if (isAdminSubdomain) {
+    // If accessing root "/" on admin subdomain
     if (pathname === '/') {
       if (!isAuthenticated) {
         return NextResponse.rewrite(new URL('/admin/login', request.url));
       }
       return NextResponse.rewrite(new URL('/admin', request.url));
     }
+
+    // If accessing "/login" on admin subdomain
+    if (pathname === '/login') {
+      if (isAuthenticated) {
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+      return NextResponse.rewrite(new URL('/admin/login', request.url));
+    }
+
+    // If user accesses /admin directly on admin subdomain (e.g. admin.domain.com/admin)
+    if (pathname.startsWith('/admin')) {
+      const subPath = pathname.replace(/^\/admin/, '') || '/';
+      return NextResponse.redirect(new URL(subPath, request.url));
+    }
   }
 
-  // 2. Direct path protection for /admin routes
+  // 2. PATH ROUTING: When visiting /admin directly on main domain
   if (pathname.startsWith('/admin')) {
     const isLoginPage = pathname === '/admin/login';
 
