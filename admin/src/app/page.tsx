@@ -36,8 +36,14 @@ import {
   Menu,
   Loader2,
   Bell,
-  Sun,
-  Moon,
+  RefreshCw,
+  SlidersHorizontal,
+  Building2,
+  ArrowUpRight,
+  CreditCard,
+  CheckSquare,
+  HelpCircle,
+  Settings,
 } from 'lucide-react';
 import { Product, Seller, OrderInquiry, Category, ProductCondition, ListingPlan } from '@/lib/types';
 import { formatPrice } from '@/lib/utils';
@@ -158,31 +164,35 @@ export default function AdminPage() {
 
   // 1-Click Action: Suspend / Scrap Off Merchant or Activate
   const handleToggleSuspendSeller = async (sellerId: string, currentStatus: string, sellerName: string) => {
-    const willSuspend = currentStatus === 'active';
-    const confirmMsg = willSuspend
-      ? `Are you sure you want to suspend "${sellerName}"? This will IMMEDIATELY hide all their goods from the public platform until they pay!`
-      : `Reactivate "${sellerName}"? All their goods will be put back online immediately.`;
+    const shouldSuspend = currentStatus === 'active';
+    const confirmMsg = shouldSuspend
+      ? `Are you sure you want to SUSPEND "${sellerName}"? All their goods will be immediately hidden from public view.`
+      : `Reactivate "${sellerName}"? All their goods will be brought back online.`;
 
-    if (!confirm(confirmMsg)) return;
+    if (!window.confirm(confirmMsg)) return;
 
-    setActionLoading(sellerId);
+    setActionLoading(`suspend-${sellerId}`);
     try {
       const res = await fetch('/api/sellers', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: sellerId,
-          action: 'toggle-suspend',
-          suspend: willSuspend,
-          reason: willSuspend ? 'Subscription expired or awaiting renewal' : undefined,
+          action: 'toggle_suspension',
+          sellerId,
+          suspend: shouldSuspend,
+          reason: shouldSuspend ? 'Monthly fee unpaid / Under review' : undefined,
         }),
       });
       const data = await res.json();
       if (data.success) {
-        showNotification(data.message);
+        showNotification(
+          shouldSuspend
+            ? `Client ${sellerName} suspended. ${data.affectedProducts} listings scrapped off public view.`
+            : `Client ${sellerName} reactivated and online.`
+        );
         loadData();
       } else {
-        showNotification(data.error || 'Failed to update seller', 'error');
+        showNotification(data.error || 'Action failed', 'error');
       }
     } catch (err: any) {
       showNotification(err.message, 'error');
@@ -191,33 +201,31 @@ export default function AdminPage() {
     }
   };
 
-  // 1-Click Action: Renew Subscription Period (Paid)
-  const handleRenewSeller = async (seller: any) => {
-    const feeText = prompt(
-      `Enter renewal listing fee paid by "${seller.name}" (UGX):`,
-      seller.packagePlan === 'VIP' ? '35000' : seller.packagePlan === 'Featured' ? '25000' : '15000'
-    );
-    if (feeText === null) return;
-    const feePaid = parseInt(feeText, 10) || 0;
+  // 1-Click Action: Renew Subscription (30 Days)
+  const handleRenewSeller = async (sellerId: string, sellerName: string, packagePlan: string) => {
+    const defaultFee = packagePlan === 'VIP' ? 35000 : packagePlan === 'Featured' ? 25000 : 15000;
+    const feeStr = window.prompt(`Enter listing fee collected in UGX for ${sellerName} (30 days renewal):`, defaultFee.toString());
+    if (feeStr === null) return;
+    const fee = parseInt(feeStr, 10) || 0;
 
-    setActionLoading(seller.id);
+    setActionLoading(`renew-${sellerId}`);
     try {
       const res = await fetch('/api/sellers', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: seller.id,
-          action: 'renew',
+          action: 'renew_subscription',
+          sellerId,
           days: 30,
-          feePaid,
+          feePaid: fee,
         }),
       });
       const data = await res.json();
       if (data.success) {
-        showNotification(`Renewed "${seller.name}" for 30 days! All products reactivated online.`);
+        showNotification(`Subscription renewed for 30 days! UGX ${fee.toLocaleString()} added to platform revenue.`);
         loadData();
       } else {
-        showNotification(data.error || 'Failed to renew subscription', 'error');
+        showNotification(data.error || 'Renewal failed', 'error');
       }
     } catch (err: any) {
       showNotification(err.message, 'error');
@@ -226,50 +234,86 @@ export default function AdminPage() {
     }
   };
 
-  // 1-Click Action: Send WhatsApp Payment Reminder with Live Stats Link
-  const handleSendPaymentReminder = (seller: any) => {
-    const amountDue = seller.packagePlan === 'VIP' ? 'UGX 35,000 (VIP Top Banner)' : seller.packagePlan === 'Featured' ? 'UGX 25,000 (Featured)' : 'UGX 15,000 (Basic)';
-    const phone = (seller.whatsappNumber || seller.phone).replace(/[^0-9]/g, '');
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://shidmagic.com';
-    const statsUrl = `${origin}/merchant/${seller.id}`;
-    const message = `Hello ${seller.name} (${seller.businessName || 'ShidMagic Merchant'}),\n\nYour product listing subscription period on ShidMagic Uganda has expired.\n\nYour items have generated ${seller.totalViews || 0} buyer views and ${seller.totalLeads || 0} WhatsApp inquiries so far! You can inspect your live views here:\n${statsUrl}\n\nTo keep your goods online and at the top for buyers in Kampala, please send your renewal payment of ${amountDue} via MTN MoMo / Airtel Money to 0772123456 (Kato Samuel Raymond).\n\nReply here with your confirmation SMS once paid so we keep your products active. Thank you!`;
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+  // Toggle Pinned Top Advert
+  const handleTogglePinTop = async (productId: string, currentPinned: boolean, title: string) => {
+    setActionLoading(`pin-${productId}`);
+    try {
+      const res = await fetch(`/api/products/${productId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isPinnedTop: !currentPinned,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotification(!currentPinned ? `Pinned "${title}" to top spotlight banner!` : `Unpinned "${title}" from banner.`);
+        loadData();
+      } else {
+        showNotification(data.error || 'Failed to update pin state', 'error');
+      }
+    } catch (err: any) {
+      showNotification(err.message, 'error');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  // 1-Click Action: Send Live Views Performance Report to Merchant
-  const handleSendViewsReport = (seller: any) => {
-    const phone = (seller.whatsappNumber || seller.phone).replace(/[^0-9]/g, '');
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://shidmagic.com';
-    const statsUrl = `${origin}/merchant/${seller.id}`;
-    const message = `*ShidMagic Performance Report for ${seller.name}*\nShop: ${seller.businessName || seller.location}\n\n*Total Real Buyer Views:* ${seller.totalViews || 0} views\n*WhatsApp Buyer Leads:* ${seller.totalLeads || 0} inquiries\n*Active Listings:* ${seller.activeListingsCount || 0} online\n*Subscription Status:* ${seller.isExpired ? 'Expired' : `${seller.daysRemaining} days remaining`}\n\n*View your live performance and individual product views here:*\n${statsUrl}\n\nNeed to add more goods or renew? Reply directly to this WhatsApp!`;
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+  // Delete Listing
+  const handleDeleteProduct = async (id: string, title: string) => {
+    if (!window.confirm(`Permanently remove "${title}"?`)) return;
+    setActionLoading(`del-prod-${id}`);
+    try {
+      const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showNotification(`Listing "${title}" deleted.`);
+        loadData();
+      } else {
+        showNotification(data.error || 'Failed to delete listing', 'error');
+      }
+    } catch (err: any) {
+      showNotification(err.message, 'error');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  // Create New Merchant
+  // Submit New Merchant
   const handleCreateMerchant = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMerchantName || !newMerchantPhone) return;
+    if (!newMerchantName.trim() || !newMerchantPhone.trim() || !newMerchantLocation.trim()) {
+      showNotification('Please fill in Name, Phone, and Shop Location', 'error');
+      return;
+    }
 
     setActionLoading('create-merchant');
     try {
+      const expDate = new Date();
+      expDate.setDate(expDate.getDate() + Number(newMerchantDurationDays));
+
       const res = await fetch('/api/sellers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: newMerchantName,
-          businessName: newMerchantBusiness,
-          phone: newMerchantPhone,
-          whatsappNumber: newMerchantWhatsapp || newMerchantPhone,
-          location: newMerchantLocation || 'Kampala CBD',
+          name: newMerchantName.trim(),
+          businessName: newMerchantBusiness.trim() || newMerchantName.trim(),
+          phone: newMerchantPhone.trim(),
+          whatsappNumber: newMerchantWhatsapp.trim() || newMerchantPhone.trim(),
+          location: newMerchantLocation.trim(),
           packagePlan: newMerchantPlan,
           photographyService: newMerchantPhotography,
-          durationDays: newMerchantDurationDays,
-          notes: newMerchantNotes,
+          notes: newMerchantNotes.trim() || undefined,
+          isVerified: true,
+          verificationBadge: 'Physical Shop Inspected & Verified',
+          subscriptionExpiresAt: expDate.toISOString(),
+          status: 'active',
         }),
       });
+
       const data = await res.json();
       if (data.success) {
-        showNotification(`Merchant "${newMerchantName}" registered successfully!`);
+        showNotification(`Merchant "${data.seller.name}" registered and activated for ${newMerchantDurationDays} days!`);
         setShowAddMerchantModal(false);
         setNewMerchantName('');
         setNewMerchantBusiness('');
@@ -288,95 +332,11 @@ export default function AdminPage() {
     }
   };
 
-  // Delete Merchant
-  const handleDeleteMerchant = async (sellerId: string, name: string) => {
-    if (!confirm(`DANGER: Are you sure you want to delete merchant "${name}"? This will delete all their registered listings and cannot be undone.`)) {
-      return;
-    }
-    setActionLoading(sellerId);
-    try {
-      const res = await fetch(`/api/sellers?id=${sellerId}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        showNotification(`Merchant "${name}" and their products were deleted.`);
-        loadData();
-      } else {
-        showNotification(data.error || 'Failed to delete merchant', 'error');
-      }
-    } catch (err: any) {
-      showNotification(err.message, 'error');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // Toggle Pin to Top Banner (Adverts)
-  const handleTogglePinTop = async (product: Product) => {
-    const newPinned = !product.isPinnedTop;
-    setActionLoading(product.id);
-    try {
-      const res = await fetch(`/api/products/${product.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isPinnedTop: newPinned }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        showNotification(newPinned ? 'Product pinned to top spotlight banner!' : 'Product unpinned from top banner.');
-        loadData();
-      }
-    } catch (err: any) {
-      showNotification(err.message, 'error');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // Toggle Sold Status
-  const handleToggleSold = async (product: Product) => {
-    const newStatus = product.status === 'sold' ? 'active' : 'sold';
-    setActionLoading(product.id);
-    try {
-      const res = await fetch(`/api/products/${product.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        showNotification(`Product marked as ${newStatus}`);
-        loadData();
-      }
-    } catch (err: any) {
-      showNotification(err.message, 'error');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // Delete Product
-  const handleDeleteProduct = async (id: string, title: string) => {
-    if (!confirm(`Delete listing "${title}"?`)) return;
-    setActionLoading(id);
-    try {
-      const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        showNotification('Listing deleted successfully');
-        loadData();
-      }
-    } catch (err: any) {
-      showNotification(err.message, 'error');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // Create Product Upload
-  const handleUploadProduct = async (e: React.FormEvent) => {
+  // Submit Product Upload
+  const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prodTitle || !prodPrice || !prodSellerId) {
-      showNotification('Please fill in title, price, and select a merchant', 'error');
+    if (!prodTitle.trim() || !prodPrice || !prodSellerId) {
+      showNotification('Please fill in Title, Price, and select a Client Shop', 'error');
       return;
     }
 
@@ -498,7 +458,7 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-row font-sans">
+    <div className="min-h-screen bg-[#f3f5f9] text-slate-900 flex flex-row font-sans">
       {/* Mobile Drawer Backdrop */}
       {isMobileSidebarOpen && (
         <div
@@ -507,26 +467,26 @@ export default function AdminPage() {
         />
       )}
 
-      {/* ================= LEFT SIDEBAR SHELL ================= */}
+      {/* ================= LEFT EXECUTIVE OBSIDIAN SIDEBAR (ZILA STYLE) ================= */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col justify-between bg-[#070d18] text-slate-300 transition-all duration-200 border-r border-[#162032] ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col justify-between bg-[#0b1329] text-slate-300 transition-all duration-200 border-r border-[#1a2542] ${
           isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         } ${isSidebarCollapsed ? 'md:w-16 w-64' : 'w-64'}`}
       >
-        {/* Sidebar Header with Brand & Collapse Toggle */}
         <div>
-          <div className="flex h-16 items-center justify-between px-4 border-b border-[#162032]">
+          {/* Brand Header */}
+          <div className="flex h-16 items-center justify-between px-4 border-b border-[#1a2542]">
             {!isSidebarCollapsed && (
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-3 min-w-0">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white font-black text-sm shadow-sm flex-shrink-0">
                   SM
                 </div>
                 <div className="min-w-0">
-                  <h1 className="text-sm font-black text-white tracking-tight leading-tight truncate">
-                    ShidMagic Admin
+                  <h1 className="text-sm font-bold text-white tracking-tight leading-tight truncate">
+                    SHIDMAGIC
                   </h1>
                   <p className="text-[10px] text-slate-400 font-medium leading-none mt-0.5 truncate">
-                    Concierge & Operations
+                    Marketplace & Ops System
                   </p>
                 </div>
               </div>
@@ -541,7 +501,7 @@ export default function AdminPage() {
             {/* Mobile close button */}
             <button
               onClick={() => setIsMobileSidebarOpen(false)}
-              className="md:hidden rounded-lg p-1.5 text-slate-400 hover:bg-[#162032] hover:text-white"
+              className="md:hidden rounded-lg p-1.5 text-slate-400 hover:bg-[#1a2542] hover:text-white"
               title="Close sidebar"
             >
               <X className="h-4 w-4" />
@@ -550,7 +510,7 @@ export default function AdminPage() {
             {/* Desktop collapse toggle */}
             <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="hidden md:block rounded-lg p-1 text-slate-400 hover:bg-[#162032] hover:text-white transition"
+              className="hidden md:block rounded-lg p-1 text-slate-400 hover:bg-[#1a2542] hover:text-white transition"
               title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {isSidebarCollapsed ? (
@@ -561,56 +521,56 @@ export default function AdminPage() {
             </button>
           </div>
 
-          {/* Navigation Items */}
-          <div className="p-3 space-y-6 overflow-y-auto max-h-[calc(100vh-140px)]">
+          {/* Navigation Links */}
+          <div className="p-3 space-y-5 overflow-y-auto max-h-[calc(100vh-140px)]">
             {/* GROUP 1: MAIN */}
             <div>
               {!isSidebarCollapsed && (
-                <p className="px-3 text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">
+                <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
                   MAIN
                 </p>
               )}
-              <div className="space-y-1">
-                <button
-                  onClick={() => handleNavClick('dashboard')}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition ${
-                    activeNav === 'dashboard'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:bg-[#111927] hover:text-white'
-                  }`}
-                  title="Dashboard"
-                >
-                  <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
-                  {!isSidebarCollapsed && <span>Dashboard</span>}
-                </button>
-              </div>
+              <button
+                onClick={() => handleNavClick('dashboard')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
+                  activeNav === 'dashboard'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-300 hover:bg-[#15203b] hover:text-white'
+                }`}
+                title="Dashboard"
+              >
+                <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
+                {!isSidebarCollapsed && <span>Dashboard</span>}
+              </button>
             </div>
 
-            {/* GROUP 2: FINANCE & MERCHANTS */}
+            {/* GROUP 2: MERCHANTS & OPERATIONS */}
             <div>
               {!isSidebarCollapsed && (
-                <p className="px-3 text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">
-                  FINANCE & CLIENTS
+                <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                  CLIENTS & SHOPS
                 </p>
               )}
               <div className="space-y-1">
                 <button
                   onClick={() => handleNavClick('merchants')}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
                     activeNav === 'merchants'
                       ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:bg-[#111927] hover:text-white'
+                      : 'text-slate-300 hover:bg-[#15203b] hover:text-white'
                   }`}
-                  title="Clients & Merchants CRM"
+                  title="Merchants Directory"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Users className="h-4 w-4 flex-shrink-0" />
-                    {!isSidebarCollapsed && <span className="truncate">Client CRM Directory</span>}
-                  </div>
-                  {!isSidebarCollapsed && expiredSellers.length > 0 && (
-                    <span className="rounded-full bg-rose-600 px-1.5 py-0.2 text-[9px] font-black text-white">
-                      {expiredSellers.length}
-                    </span>
+                  <Users className="h-4 w-4 flex-shrink-0" />
+                  {!isSidebarCollapsed && (
+                    <div className="flex items-center justify-between flex-1 min-w-0">
+                      <span className="truncate">Client Merchants</span>
+                      {expiredSellers.length > 0 && (
+                        <span className="bg-amber-500/20 text-amber-300 text-[10px] font-bold px-1.5 py-0.2 rounded">
+                          {expiredSellers.length}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </button>
 
@@ -619,41 +579,29 @@ export default function AdminPage() {
                     setShowAddMerchantModal(true);
                     setIsMobileSidebarOpen(false);
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-[#111927] hover:text-white transition pl-4"
-                  title="Record Listing Fee & Onboard"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-[#15203b] hover:text-white transition pl-4"
+                  title="Add New Merchant"
                 >
-                  <DollarSign className="h-3.5 w-3.5 flex-shrink-0 text-emerald-400" />
-                  {!isSidebarCollapsed && <span>+ Record Listing Fee</span>}
-                </button>
-
-                <button
-                  onClick={() => {
-                    handleNavClick('merchants');
-                    setMerchantFilter('expired');
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-[#111927] hover:text-white transition pl-4"
-                  title="Manage Expirations"
-                >
-                  <Clock className="h-3.5 w-3.5 flex-shrink-0 text-amber-400" />
-                  {!isSidebarCollapsed && <span>Manage Expirations</span>}
+                  <PlusCircle className="h-3.5 w-3.5 flex-shrink-0 text-blue-400" />
+                  {!isSidebarCollapsed && <span>Register Merchant</span>}
                 </button>
               </div>
             </div>
 
-            {/* GROUP 3: CATALOG & ADVERTS */}
+            {/* GROUP 3: CATALOG & GOODS */}
             <div>
               {!isSidebarCollapsed && (
-                <p className="px-3 text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">
-                  CATALOG & ADVERTS
+                <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                  GOODS & CATALOG
                 </p>
               )}
               <div className="space-y-1">
                 <button
                   onClick={() => handleNavClick('products')}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
                     activeNav === 'products'
                       ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:bg-[#111927] hover:text-white'
+                      : 'text-slate-300 hover:bg-[#15203b] hover:text-white'
                   }`}
                   title="All Goods"
                 >
@@ -665,31 +613,31 @@ export default function AdminPage() {
                   onClick={() => handleNavClick('upload')}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition pl-4 ${
                     activeNav === 'upload'
-                      ? 'text-blue-400 font-bold bg-[#111927]'
-                      : 'text-slate-400 hover:bg-[#111927] hover:text-white'
+                      ? 'text-blue-400 font-bold bg-[#15203b]'
+                      : 'text-slate-400 hover:bg-[#15203b] hover:text-white'
                   }`}
                   title="Upload Goods for Client"
                 >
                   <PlusCircle className="h-3.5 w-3.5 flex-shrink-0 text-blue-400" />
-                  {!isSidebarCollapsed && <span>+ Upload Goods for Client</span>}
+                  {!isSidebarCollapsed && <span>Upload Goods</span>}
                 </button>
               </div>
             </div>
 
-            {/* GROUP 4: LEADS & INQUIRIES */}
+            {/* GROUP 4: INQUIRIES & LEADS */}
             <div>
               {!isSidebarCollapsed && (
-                <p className="px-3 text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">
+                <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
                   INQUIRIES
                 </p>
               )}
               <div className="space-y-1">
                 <button
                   onClick={() => handleNavClick('orders')}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
                     activeNav === 'orders'
                       ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:bg-[#111927] hover:text-white'
+                      : 'text-slate-300 hover:bg-[#15203b] hover:text-white'
                   }`}
                   title="Customer Leads"
                 >
@@ -701,25 +649,23 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Sidebar Bottom: User Profile & Sign Out (Matching Screenshot) */}
-        <div className="p-3 border-t border-[#162032] bg-[#050912]">
+        {/* Sidebar Footer: User Profile & Logout */}
+        <div className="p-3 border-t border-[#1a2542] bg-[#070d1a]">
           <div className="flex items-center gap-3 px-2 py-2">
-            <div className="h-9 w-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0 border border-blue-400/30">
+            <div className="h-9 w-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
               SK
             </div>
             {!isSidebarCollapsed && (
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-white truncate">samuel kato</p>
-                <p className="text-[10px] text-slate-400 truncate">
-                  katosamuelraymond...
-                </p>
+                <p className="text-xs font-bold text-white truncate">Samuel Kato</p>
+                <p className="text-[10px] text-slate-400 truncate">Administrator</p>
               </div>
             )}
           </div>
 
           <button
             onClick={handleLogout}
-            className="w-full mt-1.5 flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-400 hover:bg-rose-950/40 hover:text-rose-300 transition"
+            className="w-full mt-1.5 flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition"
           >
             <LogOut className="h-4 w-4 flex-shrink-0" />
             {!isSidebarCollapsed && <span>Sign Out</span>}
@@ -736,70 +682,69 @@ export default function AdminPage() {
         {/* Top Header Bar */}
         <header className="sticky top-0 z-30 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 shadow-2xs gap-3">
           {/* Mobile Hamburger & Global Search */}
-          <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <button
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="md:hidden rounded-xl border border-slate-200 p-2 text-slate-700 hover:bg-slate-50 flex-shrink-0"
+              className="md:hidden rounded-lg border border-slate-200 p-2 text-slate-700 hover:bg-slate-50 flex-shrink-0"
               title="Open Navigation Menu"
             >
               <Menu className="h-4 w-4" />
             </button>
 
-            <div className="relative flex-1 max-w-xs sm:max-w-sm md:max-w-md min-w-0">
+            <div className="relative flex-1 max-w-md min-w-0">
               <Search className="h-4 w-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
               <input
                 id="admin-global-search"
                 type="text"
-                placeholder="Search clients, goods, phone..."
+                placeholder="Search pages, merchants, products..."
                 value={globalSearch}
                 onChange={(e) => setGlobalSearch(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-14 text-xs text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:bg-white focus:outline-none transition shadow-2xs"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50/70 py-2 pl-9 pr-14 text-xs text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:bg-white focus:outline-none transition shadow-2xs"
               />
-              <span className="hidden sm:inline-block absolute right-2.5 top-2.5 rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-mono text-slate-600 pointer-events-none">
+              <span className="hidden sm:inline-block absolute right-2.5 top-2.5 rounded bg-slate-200/80 px-1.5 py-0.5 text-[9px] font-mono text-slate-600 pointer-events-none">
                 Ctrl K
               </span>
             </div>
           </div>
 
-          {/* Top Right Tools & Profile */}
+          {/* Top Right Utilities */}
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             {/* Live Marketplace link */}
-            <Link
-              href="/"
+            <a
+              href="https://shidmagic.conquerer.org"
               target="_blank"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+              rel="noreferrer"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
             >
               <ExternalLink className="h-3.5 w-3.5 text-slate-500" />
-              <span>Live Marketplace</span>
-            </Link>
+              <span>Public Store</span>
+            </a>
 
             {/* Notification Bell */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  handleNavClick('merchants');
-                  setMerchantFilter('expired');
-                }}
-                className="rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 transition relative"
-                title={`${expiredSellers.length} expired subscriptions`}
-              >
-                <Bell className="h-4 w-4" />
-                {expiredSellers.length > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[9px] font-black text-white">
-                    {expiredSellers.length}
-                  </span>
-                )}
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                handleNavClick('merchants');
+                setMerchantFilter('expired');
+              }}
+              className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 transition relative"
+              title={`${expiredSellers.length} expired subscriptions`}
+            >
+              <Bell className="h-4 w-4" />
+              {expiredSellers.length > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[9px] font-bold text-white">
+                  {expiredSellers.length}
+                </span>
+              )}
+            </button>
 
-            {/* User Profile Pill */}
+            {/* Admin Avatar Pill */}
             <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
-              <div className="h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-black shadow-sm">
+              <div className="h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">
                 SK
               </div>
               <div className="hidden md:block text-left">
-                <p className="text-xs font-bold text-slate-900 leading-tight">samuel kato</p>
-                <p className="text-[10px] text-slate-500 leading-tight">Admin Operator</p>
+                <p className="text-xs font-bold text-slate-900 leading-tight">Samuel Kato</p>
+                <p className="text-[10px] text-slate-500 leading-tight">Administrator</p>
               </div>
             </div>
           </div>
@@ -808,14 +753,14 @@ export default function AdminPage() {
         {/* Floating Notification */}
         {notification && (
           <div
-            className={`fixed bottom-4 right-4 z-50 rounded-xl px-4 py-3 shadow-xl text-xs font-bold flex items-center gap-2 border ${
+            className={`fixed bottom-4 right-4 z-50 rounded-lg px-4 py-3 shadow-lg text-xs font-semibold flex items-center gap-2 border ${
               notification.type === 'error'
-                ? 'bg-rose-50 text-rose-800 border-rose-300'
-                : 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                ? 'bg-red-50 text-red-800 border-red-200'
+                : 'bg-emerald-50 text-emerald-900 border-emerald-200'
             }`}
           >
             {notification.type === 'error' ? (
-              <AlertTriangle className="h-4 w-4 text-rose-600 flex-shrink-0" />
+              <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
             ) : (
               <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
             )}
@@ -828,228 +773,230 @@ export default function AdminPage() {
 
         {/* Content Body */}
         <main className="p-6 sm:p-8 space-y-6 flex-1">
-          {/* Page Greeting & Operational Header (Matching Screenshot) */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-[11px] font-bold text-rose-700">
-                  <span className="h-1.5 w-1.5 rounded-full bg-rose-600"></span>
-                  Operator
+          {/* ================= EXECUTIVE SUMMARY BANNER (MUBS & ZILA HYBRID) ================= */}
+          <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-2xs">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                    OPERATIONAL PROGRAMME:
+                  </span>
+                  <span className="font-bold text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                    KAMPALA MARKETPLACE CONCIERGE (SHID)
+                  </span>
+                  <span className="rounded bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold uppercase">
+                    ACTIVE
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Physical shop verification, flat monthly listing fees, and direct WhatsApp buyer routing.
+                </p>
+              </div>
+
+              {/* Status Chips */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                  OCTOBER 2026
                 </span>
-                <span className="text-xs font-semibold text-slate-500">
-                  Operational Command Center
+                <span className="rounded bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow-2xs">
+                  REVENUE: {formatPrice(totalRevenue)}
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                Welcome back, samuel
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-500">
-                Live overview of merchants, listings, flat listing fees, and real-time buyer analytics across Uganda.
-              </p>
             </div>
 
-            {/* Date Pill (Matching Screenshot) */}
-            <div className="self-start sm:self-auto inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs">
-              <Calendar className="h-4 w-4 text-slate-400" />
-              <span>Wed, Oct 28, 2026</span>
+            {/* Quick Metrics Strip */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+              <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3">
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                  ACTIVE SHOPS
+                </p>
+                <p className="text-lg font-bold text-slate-900 mt-0.5">{activeSellersCount} Clients</p>
+              </div>
+              <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3">
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                  LIVE GOODS
+                </p>
+                <p className="text-lg font-bold text-slate-900 mt-0.5">{activeProductsCount} Items</p>
+              </div>
+              <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3">
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                  WHATSAPP LEADS
+                </p>
+                <p className="text-lg font-bold text-blue-700 mt-0.5">{totalLeads} Contacts</p>
+              </div>
+              <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3">
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                  EXPIRED SUBSCRIPTIONS
+                </p>
+                <p className={`text-lg font-bold mt-0.5 ${expiredSellers.length > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+                  {expiredSellers.length} Due
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* ================= SECTION: FINANCIAL OVERVIEW (EXACT SCREENSHOT LAYOUT) ================= */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-black text-slate-900">Financial Overview</h2>
-                <p className="text-[11px] text-slate-500">
-                  Real-time UGX cashflow and concierge listing fee queue for October 2026
-                </p>
-              </div>
-              <span className="text-xs font-bold text-slate-700">
-                Net October 2026:{' '}
-                <span className="text-emerald-700 font-black">{formatPrice(totalRevenue)}</span>
-              </span>
-            </div>
-
-            {/* 4 Colored Metric Cards (Vertical Left Accent Bars) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Card 1: Green Accent (Current Month Income) */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs border-l-4 border-l-emerald-500 relative flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      CURRENT MONTH INCOME
-                    </span>
-                    <span className="h-7 w-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs">
-                      $
-                    </span>
-                  </div>
-                  <p className="text-xl sm:text-2xl font-black text-slate-900 mt-2">
-                    {formatPrice(totalRevenue)}
-                  </p>
-                </div>
-                <p className="text-[11px] text-slate-400 mt-2">Recorded in October 2026</p>
-              </div>
-
-              {/* Card 2: Red Accent (Month Suspended / Unpaid) */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs border-l-4 border-l-rose-500 relative flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      SUSPENDED / HIDDEN
-                    </span>
-                    <span className="h-7 w-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-xs">
-                      <TrendingDown className="h-3.5 w-3.5" />
-                    </span>
-                  </div>
-                  <p className="text-xl sm:text-2xl font-black text-slate-900 mt-2">
-                    {suspendedSellersCount} Clients
-                  </p>
-                </div>
-                <p className="text-[11px] text-rose-600 font-semibold mt-2">
-                  {suspendedProductsCount} goods scrapped off public view
-                </p>
-              </div>
-
-              {/* Card 3: Amber Accent (Expiring / Pending Subscriptions) */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs border-l-4 border-l-amber-500 relative flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      PENDING CASH REQUESTS
-                    </span>
-                    <span className="h-7 w-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xs">
-                      <Clock className="h-3.5 w-3.5" />
-                    </span>
-                  </div>
-                  <p className="text-xl sm:text-2xl font-black text-slate-900 mt-2">
-                    {expiredSellers.length}
-                  </p>
-                </div>
-                <p className="text-[11px] text-amber-700 font-medium mt-2">
-                  Awaiting 30-day renewal payments
-                </p>
-              </div>
-
-              {/* Card 4: Blue Accent (Active Verified Goods) */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs border-l-4 border-l-blue-500 relative flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      LIVE ONLINE GOODS
-                    </span>
-                    <span className="h-7 w-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs">
-                      <Package className="h-3.5 w-3.5" />
-                    </span>
-                  </div>
-                  <p className="text-xl sm:text-2xl font-black text-slate-900 mt-2">
-                    {activeProductsCount}
-                  </p>
-                </div>
-                <p className="text-[11px] text-slate-400 mt-2">
-                  Live for buyers across Uganda
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* ================= SECTION: OPERATIONS, MERCHANTS & ACCESS ================= */}
-          <section className="space-y-3">
-            <h2 className="text-sm font-black text-slate-900">People, Operations & Access</h2>
-
-            {/* 4 Small Summary Chips */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="rounded-xl border border-slate-200 bg-white p-3.5 flex items-center justify-between shadow-2xs">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    ACTIVE MERCHANTS
-                  </span>
-                  <p className="text-lg font-black text-slate-900 mt-0.5">{activeSellersCount}</p>
-                </div>
-                <span className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                  <Users className="h-4 w-4" />
-                </span>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-white p-3.5 flex items-center justify-between shadow-2xs">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    PINNED ADVERTS
-                  </span>
-                  <p className="text-lg font-black text-slate-900 mt-0.5">
-                    {products.filter((p) => p.isPinnedTop).length}
-                  </p>
-                </div>
-                <span className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                  <Sparkles className="h-4 w-4" />
-                </span>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-white p-3.5 flex items-center justify-between shadow-2xs">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    WHATSAPP LEADS
-                  </span>
-                  <p className="text-lg font-black text-slate-900 mt-0.5">{totalLeads}</p>
-                </div>
-                <span className="h-8 w-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-                  <MessageCircle className="h-4 w-4" />
-                </span>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-white p-3.5 flex items-center justify-between shadow-2xs">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    REAL BUYER VIEWS
-                  </span>
-                  <p className="text-lg font-black text-slate-900 mt-0.5">
-                    {totalViews.toLocaleString()}
-                  </p>
-                </div>
-                <span className="h-8 w-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-                  <Eye className="h-4 w-4" />
-                </span>
-              </div>
-            </div>
-          </section>
-
-          {/* ================= TAB 1: DASHBOARD HOME TABLE ================= */}
+          {/* ================= SECTION: QUICK ACTIONS (ZILA FINANCE EXACT GRID) ================= */}
           {activeNav === 'dashboard' && (
-            <div className="space-y-4">
+            <section className="space-y-3">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">Quick Actions</h2>
+                <p className="text-xs text-slate-500">Jump directly to your most frequent management tasks</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                {/* 1. Register Client Merchant */}
+                <button
+                  onClick={() => setShowAddMerchantModal(true)}
+                  className="rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-blue-400 hover:shadow-xs transition flex items-start gap-3.5 group"
+                >
+                  <div className="h-10 w-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold flex-shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition">
+                    <PlusCircle className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-xs font-bold text-slate-900 group-hover:text-blue-700 transition">
+                      Register Client Merchant
+                    </h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
+                      Verify shop location & assign monthly listing plan.
+                    </p>
+                  </div>
+                </button>
+
+                {/* 2. Upload Goods */}
+                <button
+                  onClick={() => handleNavClick('upload')}
+                  className="rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-blue-400 hover:shadow-xs transition flex items-start gap-3.5 group"
+                >
+                  <div className="h-10 w-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition">
+                    <Package className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-xs font-bold text-slate-900 group-hover:text-blue-700 transition">
+                      Upload Goods for Client
+                    </h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
+                      Publish items, specs, pricing & WhatsApp photos.
+                    </p>
+                  </div>
+                </button>
+
+                {/* 3. Manage Subscriptions */}
+                <button
+                  onClick={() => {
+                    handleNavClick('merchants');
+                    setMerchantFilter('expired');
+                  }}
+                  className="rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-blue-400 hover:shadow-xs transition flex items-start gap-3.5 group"
+                >
+                  <div className="h-10 w-10 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center font-bold flex-shrink-0 group-hover:bg-amber-600 group-hover:text-white transition">
+                    <Clock className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-xs font-bold text-slate-900 group-hover:text-blue-700 transition">
+                      Renew Subscriptions
+                    </h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
+                      Review expiring 30-day merchant listing plans.
+                    </p>
+                  </div>
+                </button>
+
+                {/* 4. Customer Inquiries */}
+                <button
+                  onClick={() => handleNavClick('orders')}
+                  className="rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-blue-400 hover:shadow-xs transition flex items-start gap-3.5 group"
+                >
+                  <div className="h-10 w-10 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center font-bold flex-shrink-0 group-hover:bg-teal-600 group-hover:text-white transition">
+                    <MessageCircle className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-xs font-bold text-slate-900 group-hover:text-blue-700 transition">
+                      Customer Leads & Inquiries
+                    </h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
+                      Track reservations & direct WhatsApp contacts.
+                    </p>
+                  </div>
+                </button>
+
+                {/* 5. Spotlight Adverts */}
+                <button
+                  onClick={() => {
+                    handleNavClick('products');
+                  }}
+                  className="rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-blue-400 hover:shadow-xs transition flex items-start gap-3.5 group"
+                >
+                  <div className="h-10 w-10 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center font-bold flex-shrink-0 group-hover:bg-purple-600 group-hover:text-white transition">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-xs font-bold text-slate-900 group-hover:text-blue-700 transition">
+                      Spotlight & Pinned Adverts
+                    </h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
+                      Pin high-ticket products to top showcase banner.
+                    </p>
+                  </div>
+                </button>
+
+                {/* 6. All Listed Goods */}
+                <button
+                  onClick={() => handleNavClick('products')}
+                  className="rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-blue-400 hover:shadow-xs transition flex items-start gap-3.5 group"
+                >
+                  <div className="h-10 w-10 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition">
+                    <Layers className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-xs font-bold text-slate-900 group-hover:text-blue-700 transition">
+                      Manage All Goods
+                    </h3>
+                    <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">
+                      Audit price, condition, views, and stock status.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* ================= TAB 1: RECENT MERCHANTS TABLE (EXECUTIVE DESIGN) ================= */}
+          {activeNav === 'dashboard' && (
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-black text-slate-900">Recent Merchant Activity</h3>
+                  <h3 className="text-sm font-bold text-slate-900">Recent Merchant Activity</h3>
                   <p className="text-xs text-slate-500">
-                    Quick visibility toggle, payment renewals, and performance monitoring.
+                    Direct access to toggle client visibility, renew payments, and inspect metrics.
                   </p>
                 </div>
                 <button
                   onClick={() => setShowAddMerchantModal(true)}
-                  className="rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700 transition shadow-2xs"
+                  className="rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition shadow-2xs"
                 >
-                  + Add New Client
+                  + Add Client Merchant
                 </button>
               </div>
 
-              {/* Table of merchants */}
-              <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-2xs">
+              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                 <table className="w-full min-w-[700px] text-left border-collapse text-xs">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    <tr className="border-b border-slate-200 bg-slate-50/90 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                       <th className="p-3.5">Merchant & Location</th>
-                      <th className="p-3.5">Phone / WhatsApp</th>
-                      <th className="p-3.5">Plan & Expiry</th>
-                      <th className="p-3.5">Live Stats</th>
+                      <th className="p-3.5">Contact Details</th>
+                      <th className="p-3.5">Subscription Plan</th>
+                      <th className="p-3.5">Performance</th>
                       <th className="p-3.5">Status</th>
-                      <th className="p-3.5 text-right">Visibility Action</th>
+                      <th className="p-3.5 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {sellers.slice(0, 5).map((seller) => {
                       const isSuspended = seller.status === 'suspended';
                       return (
-                        <tr key={seller.id} className="hover:bg-slate-50 transition">
+                        <tr key={seller.id} className="hover:bg-slate-50/70 transition">
                           <td className="p-3.5">
-                            <p className="font-bold text-slate-900">{seller.name}</p>
+                            <p className="font-semibold text-slate-900">{seller.name}</p>
                             <p className="text-[11px] text-slate-500">{seller.businessName || 'Merchant'}</p>
                             <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
                               <MapPin className="h-3 w-3 text-slate-400" />
@@ -1063,21 +1010,21 @@ export default function AdminPage() {
                               href={`https://wa.me/${(seller.whatsappNumber || seller.phone).replace(/[^0-9]/g, '')}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-[10px] font-bold text-emerald-700 hover:underline"
+                              className="text-[10px] font-semibold text-emerald-700 hover:underline"
                             >
-                              WA: {seller.whatsappNumber || seller.phone}
+                              WhatsApp: {seller.whatsappNumber || seller.phone}
                             </a>
                           </td>
 
                           <td className="p-3.5">
-                            <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                            <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
                               {seller.packagePlan}
                             </span>
                             <div className="text-[10px] mt-1">
                               {seller.isExpired ? (
-                                <span className="font-bold text-rose-600">EXPIRED</span>
+                                <span className="font-bold text-red-600">EXPIRED</span>
                               ) : (
-                                <span className="text-emerald-700 font-semibold">
+                                <span className="text-emerald-700 font-medium">
                                   {seller.daysRemaining}d left
                                 </span>
                               )}
@@ -1085,47 +1032,42 @@ export default function AdminPage() {
                           </td>
 
                           <td className="p-3.5">
-                            <p className="font-bold text-slate-800">{seller.totalViews || 0} views</p>
+                            <p className="font-semibold text-slate-800">{seller.totalViews || 0} views</p>
                             <p className="text-[10px] text-slate-500">{seller.totalLeads || 0} inquiries</p>
                           </td>
 
                           <td className="p-3.5">
                             <span
-                              className={`rounded px-2 py-0.5 text-[9px] font-black ${
+                              className={`rounded px-2 py-0.5 text-[9px] font-bold ${
                                 isSuspended
                                   ? 'bg-slate-200 text-slate-700'
                                   : 'bg-emerald-100 text-emerald-800'
                               }`}
                             >
-                              {isSuspended ? 'HIDDEN' : 'ONLINE'}
+                              {isSuspended ? 'SUSPENDED' : 'ONLINE'}
                             </span>
                           </td>
 
-                          <td className="p-3.5 text-right space-x-1.5">
-                            {isSuspended ? (
-                              <button
-                                onClick={() => handleToggleSuspendSeller(seller.id, seller.status, seller.name)}
-                                className="rounded-lg bg-emerald-700 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-emerald-800 transition"
-                              >
-                                Put Online
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleToggleSuspendSeller(seller.id, seller.status, seller.name)}
-                                className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-100 transition"
-                              >
-                                Scrap Off
-                              </button>
-                            )}
-
-                            <Link
-                              href={`/merchant/${seller.id}`}
-                              target="_blank"
-                              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1"
+                          <td className="p-3.5 text-right space-x-1.5 whitespace-nowrap">
+                            <button
+                              onClick={() => handleToggleSuspendSeller(seller.id, seller.status, seller.name)}
+                              disabled={actionLoading === `suspend-${seller.id}`}
+                              className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition border ${
+                                isSuspended
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                  : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                              }`}
                             >
-                              <Eye className="h-3 w-3 text-emerald-700" />
-                              <span>Live Stats</span>
-                            </Link>
+                              {isSuspended ? 'Reactivate' : 'Suspend'}
+                            </button>
+
+                            <button
+                              onClick={() => handleRenewSeller(seller.id, seller.name, seller.packagePlan)}
+                              disabled={actionLoading === `renew-${seller.id}`}
+                              className="rounded-lg bg-blue-50 border border-blue-200 px-2.5 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 transition"
+                            >
+                              Renew +30d
+                            </button>
                           </td>
                         </tr>
                       );
@@ -1136,188 +1078,128 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* ================= TAB 2: FULL CLIENT CRM ================= */}
+          {/* ================= TAB 2: MERCHANTS DIRECTORY ================= */}
           {activeNav === 'merchants' && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-base font-black text-slate-900">Clients & Merchants CRM</h2>
+                  <h2 className="text-base font-bold text-slate-900">Registered Client Merchants</h2>
                   <p className="text-xs text-slate-500">
-                    Full CRUD operations, 1-click scrap off/hide, renewal payments, and WhatsApp reports.
+                    Audit physical store visits, package subscriptions, and visibility status.
                   </p>
                 </div>
-                <button
-                  onClick={() => setShowAddMerchantModal(true)}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition shadow-2xs self-start sm:self-auto"
-                >
-                  + Register New Merchant
-                </button>
-              </div>
 
-              {/* Filter tabs */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button
-                  onClick={() => setMerchantFilter('all')}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                    merchantFilter === 'all'
-                      ? 'bg-slate-900 text-white'
-                      : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  All ({sellers.length})
-                </button>
-                <button
-                  onClick={() => setMerchantFilter('active')}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                    merchantFilter === 'active'
-                      ? 'bg-emerald-700 text-white'
-                      : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  Online Active ({activeSellersCount})
-                </button>
-                <button
-                  onClick={() => setMerchantFilter('expired')}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                    merchantFilter === 'expired'
-                      ? 'bg-rose-600 text-white'
-                      : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  Expired Subscriptions ({expiredSellers.length})
-                </button>
-                <button
-                  onClick={() => setMerchantFilter('suspended')}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-                    merchantFilter === 'suspended'
-                      ? 'bg-slate-700 text-white'
-                      : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  Hidden / Suspended ({suspendedSellersCount})
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Filter Pills */}
+                  <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs">
+                    {(['all', 'active', 'expired', 'suspended'] as const).map((filter) => (
+                      <button
+                        key={filter}
+                        onClick={() => setMerchantFilter(filter)}
+                        className={`rounded-md px-3 py-1 font-semibold capitalize transition ${
+                          merchantFilter === filter
+                            ? 'bg-blue-600 text-white shadow-2xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        {filter}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => setShowAddMerchantModal(true)}
+                    className="rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition shadow-2xs"
+                  >
+                    + Add Merchant
+                  </button>
+                </div>
               </div>
 
               {/* Table */}
-              <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-2xs">
-                <table className="w-full min-w-[700px] text-left border-collapse text-xs">
+              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+                <table className="w-full min-w-[750px] text-left border-collapse text-xs">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500">
-                      <th className="p-3.5">Merchant / Business</th>
-                      <th className="p-3.5">Contacts</th>
+                    <tr className="border-b border-slate-200 bg-slate-50/90 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      <th className="p-3.5">Merchant / Shop</th>
+                      <th className="p-3.5">Contact</th>
                       <th className="p-3.5">Plan & Expiry</th>
-                      <th className="p-3.5">Listings & Leads</th>
+                      <th className="p-3.5">Fees Paid</th>
                       <th className="p-3.5">Status</th>
-                      <th className="p-3.5 text-right">Actions</th>
+                      <th className="p-3.5 text-right">Visibility Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredSellers.map((seller) => {
                       const isSuspended = seller.status === 'suspended';
                       return (
-                        <tr key={seller.id} className="hover:bg-slate-50 transition">
+                        <tr key={seller.id} className="hover:bg-slate-50/70 transition">
                           <td className="p-3.5">
-                            <p className="font-bold text-slate-900">{seller.name}</p>
+                            <p className="font-semibold text-slate-900">{seller.name}</p>
                             <p className="text-[11px] text-slate-500">{seller.businessName}</p>
-                            <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                              <MapPin className="h-3 w-3 text-slate-400" />
+                            <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
                               <span>{seller.location}</span>
                             </p>
                           </td>
 
                           <td className="p-3.5">
                             <p className="font-mono text-slate-800">{seller.phone}</p>
-                            <a
-                              href={`https://wa.me/${(seller.whatsappNumber || seller.phone).replace(/[^0-9]/g, '')}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-[10px] font-bold text-emerald-700 hover:underline"
-                            >
-                              WA: {seller.whatsappNumber}
-                            </a>
+                            <p className="text-[10px] text-emerald-700 font-semibold">
+                              WA: {seller.whatsappNumber || seller.phone}
+                            </p>
                           </td>
 
                           <td className="p-3.5">
-                            <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                            <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
                               {seller.packagePlan}
                             </span>
                             <div className="text-[10px] mt-1">
                               {seller.isExpired ? (
-                                <span className="font-bold text-rose-600">EXPIRED</span>
+                                <span className="font-bold text-red-600">EXPIRED</span>
                               ) : (
-                                <span className="text-emerald-700 font-semibold">
-                                  {seller.daysRemaining}d left
+                                <span className="text-emerald-700 font-medium">
+                                  {seller.daysRemaining} days left
                                 </span>
                               )}
                             </div>
                           </td>
 
-                          <td className="p-3.5">
-                            <p className="font-bold text-slate-800">{seller.totalViews || 0} views</p>
-                            <p className="text-[10px] text-slate-500">{seller.totalLeads || 0} WhatsApp leads</p>
+                          <td className="p-3.5 font-semibold text-slate-800">
+                            {formatPrice(seller.totalListingFeesPaid || 0)}
                           </td>
 
                           <td className="p-3.5">
                             <span
-                              className={`rounded px-2 py-0.5 text-[9px] font-black ${
+                              className={`rounded px-2 py-0.5 text-[9px] font-bold ${
                                 isSuspended
                                   ? 'bg-slate-200 text-slate-700'
                                   : 'bg-emerald-100 text-emerald-800'
                               }`}
                             >
-                              {isSuspended ? 'HIDDEN' : 'ONLINE'}
+                              {isSuspended ? 'SUSPENDED' : 'ONLINE'}
                             </span>
                           </td>
 
-                          <td className="p-3.5 text-right space-x-1 whitespace-nowrap">
-                            {isSuspended ? (
-                              <button
-                                onClick={() => handleToggleSuspendSeller(seller.id, seller.status, seller.name)}
-                                className="rounded-lg bg-emerald-700 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-emerald-800 transition"
-                              >
-                                Put Online
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleToggleSuspendSeller(seller.id, seller.status, seller.name)}
-                                className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-100 transition"
-                              >
-                                Scrap Off
-                              </button>
-                            )}
-
-                            <Link
-                              href={`/merchant/${seller.id}`}
-                              target="_blank"
-                              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1"
-                              title="Client Live Analytics"
-                            >
-                              <Eye className="h-3 w-3 text-emerald-700" />
-                              <span>Live Stats</span>
-                            </Link>
-
+                          <td className="p-3.5 text-right space-x-1.5 whitespace-nowrap">
                             <button
-                              onClick={() => handleSendViewsReport(seller)}
-                              className="rounded-lg bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100"
-                              title="Send WhatsApp Report"
+                              onClick={() => handleToggleSuspendSeller(seller.id, seller.status, seller.name)}
+                              disabled={actionLoading === `suspend-${seller.id}`}
+                              className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition border ${
+                                isSuspended
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                  : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                              }`}
                             >
-                              Report
+                              {isSuspended ? 'Reactivate' : 'Suspend'}
                             </button>
 
                             <button
-                              onClick={() => handleRenewSeller(seller)}
-                              className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-200"
-                              title="Renew +30 Days"
+                              onClick={() => handleRenewSeller(seller.id, seller.name, seller.packagePlan)}
+                              disabled={actionLoading === `renew-${seller.id}`}
+                              className="rounded-lg bg-blue-50 border border-blue-200 px-2.5 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 transition"
                             >
-                              Renew
-                            </button>
-
-                            <button
-                              onClick={() => handleDeleteMerchant(seller.id, seller.name)}
-                              className="rounded-lg p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                              title="Delete Client"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              Renew +30d
                             </button>
                           </td>
                         </tr>
@@ -1329,115 +1211,271 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* ================= TAB 3: ALL PRODUCTS CATALOG ================= */}
+          {/* ================= TAB 3: UPLOAD GOODS FORM ================= */}
+          {activeNav === 'upload' && (
+            <div className="max-w-4xl space-y-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-2xs">
+                <div className="border-b border-slate-100 pb-4 mb-5">
+                  <h2 className="text-base font-bold text-slate-900">Upload Goods for Client Merchant</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Items are immediately vetted and made searchable for customers across Kampala and Uganda.
+                  </p>
+                </div>
+
+                <form onSubmit={handleCreateProduct} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Select Client Merchant Shop *
+                      </label>
+                      <select
+                        required
+                        value={prodSellerId}
+                        onChange={(e) => setProdSellerId(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                      >
+                        {sellers.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({s.location})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Product Title *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. 1000W Solar Hybrid Generator (1200Wh Lithium + Panel)"
+                        value={prodTitle}
+                        onChange={(e) => setProdTitle(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Category *
+                      </label>
+                      <select
+                        value={prodCategory}
+                        onChange={(e) => setProdCategory(e.target.value as Category)}
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                      >
+                        <option value="Solar & Power Backup">Solar & Power Backup</option>
+                        <option value="Water & Home Tech">Water & Home Tech</option>
+                        <option value="Phones & Computers">Phones & Computers</option>
+                        <option value="Agri & Food Processing">Agri & Food Processing</option>
+                        <option value="Fashion & Beauty">Fashion & Beauty</option>
+                        <option value="Vehicles & Auto">Vehicles & Auto</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Price (UGX) *
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        placeholder="e.g. 1850000"
+                        value={prodPrice}
+                        onChange={(e) => setProdPrice(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Original Price (Optional)
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 2200000"
+                        value={prodOriginalPrice}
+                        onChange={(e) => setProdOriginalPrice(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Everyday Challenge It Solves (Key Buyer Value)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Stops Umeme load-shedding. Keeps Wi-Fi, 43'' TV, and lights powered for 14 hours."
+                      value={prodProblemSolved}
+                      onChange={(e) => setProdProblemSolved(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Full Description & Specifications
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Enter detailed technical description, warranty terms, and delivery instructions..."
+                      value={prodDescription}
+                      onChange={(e) => setProdDescription(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Image URL (Direct link to photo)
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://..."
+                      value={prodImageUrls[0] || ''}
+                      onChange={(e) => setProdImageUrls([e.target.value])}
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={prodIsPinnedTop}
+                        onChange={(e) => setProdIsPinnedTop(e.target.checked)}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>Pin to Top Spotlight Banner (Hero Showcase)</span>
+                    </label>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleNavClick('products')}
+                      className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={actionLoading === 'upload-prod'}
+                      className="rounded-lg bg-blue-600 px-5 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition shadow-2xs disabled:opacity-50"
+                    >
+                      {actionLoading === 'upload-prod' ? 'Publishing...' : 'Publish Goods Live'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* ================= TAB 4: ALL LISTED GOODS TABLE ================= */}
           {activeNav === 'products' && (
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-base font-black text-slate-900">All Listed Goods</h2>
+                  <h2 className="text-base font-bold text-slate-900">All Listed Goods ({filteredProducts.length})</h2>
                   <p className="text-xs text-slate-500">
-                    Pin items to the top moving adverts banner, toggle sold/active, or generate WhatsApp flyers.
+                    Audit prices, views, WhatsApp click leads, and spotlight pin status.
                   </p>
                 </div>
-                <button
-                  onClick={() => setActiveNav('upload')}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition shadow-2xs self-start sm:self-auto"
-                >
-                  + Upload Goods for Client
-                </button>
+
+                <div className="flex items-center gap-2">
+                  <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs">
+                    {(['all', 'active', 'suspended', 'sold'] as const).map((filter) => (
+                      <button
+                        key={filter}
+                        onClick={() => setProductFilter(filter)}
+                        className={`rounded-md px-3 py-1 font-semibold capitalize transition ${
+                          productFilter === filter
+                            ? 'bg-blue-600 text-white shadow-2xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        {filter}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => handleNavClick('upload')}
+                    className="rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition shadow-2xs"
+                  >
+                    + Upload Goods
+                  </button>
+                </div>
               </div>
 
-              {/* Product table */}
-              <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-2xs">
-                <table className="w-full min-w-[700px] text-left border-collapse text-xs">
+              {/* Products Table */}
+              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+                <table className="w-full min-w-[750px] text-left border-collapse text-xs">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500">
-                      <th className="p-3.5">Product Details</th>
-                      <th className="p-3.5">Price (UGX)</th>
-                      <th className="p-3.5">Merchant</th>
-                      <th className="p-3.5">Top Banner Advert</th>
-                      <th className="p-3.5">Status</th>
+                    <tr className="border-b border-slate-200 bg-slate-50/90 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      <th className="p-3.5">Product Title & Category</th>
+                      <th className="p-3.5">Client Merchant</th>
+                      <th className="p-3.5">Price</th>
+                      <th className="p-3.5">Buyer Leads</th>
+                      <th className="p-3.5">Spotlight</th>
                       <th className="p-3.5 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredProducts.map((p) => (
-                      <tr key={p.id} className="hover:bg-slate-50 transition">
+                      <tr key={p.id} className="hover:bg-slate-50/70 transition">
                         <td className="p-3.5">
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={p.images[0]}
-                              alt={p.title}
-                              className="h-10 w-10 rounded-lg object-contain bg-slate-50 border border-slate-200 p-0.5 flex-shrink-0"
-                            />
-                            <div className="min-w-0 max-w-sm">
-                              <p className="font-bold text-slate-900 truncate">{p.title}</p>
-                              <p className="text-[10px] text-slate-500">{p.category} • {p.condition}</p>
-                            </div>
-                          </div>
+                          <p className="font-semibold text-slate-900 line-clamp-1">{p.title}</p>
+                          <p className="text-[10px] text-slate-500">{p.category} • {p.condition}</p>
                         </td>
 
-                        <td className="p-3.5 font-black text-slate-900">
+                        <td className="p-3.5">
+                          <p className="font-semibold text-slate-800">{p.sellerName}</p>
+                          <p className="text-[10px] text-slate-400">{p.sellerLocation}</p>
+                        </td>
+
+                        <td className="p-3.5 font-bold text-slate-900">
                           {formatPrice(p.price)}
                         </td>
 
                         <td className="p-3.5">
-                          <p className="font-bold text-slate-900">{p.sellerName}</p>
-                          <p className="text-[10px] text-slate-500">{p.sellerPhone}</p>
+                          <p className="font-semibold text-slate-800">{p.viewsCount} views</p>
+                          <p className="text-[10px] text-emerald-700 font-semibold">{p.whatsappClicks} WhatsApp clicks</p>
                         </td>
 
                         <td className="p-3.5">
                           <button
-                            onClick={() => handleTogglePinTop(p)}
-                            className={`rounded-lg px-2.5 py-1 text-[10px] font-bold transition ${
+                            onClick={() => handleTogglePinTop(p.id, Boolean(p.isPinnedTop), p.title)}
+                            disabled={actionLoading === `pin-${p.id}`}
+                            className={`rounded px-2 py-0.5 text-[10px] font-semibold transition border ${
                               p.isPinnedTop
-                                ? 'bg-amber-400 text-slate-950 font-black'
-                                : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                                ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
+                                : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
                             }`}
                           >
-                            {p.isPinnedTop ? '★ Top Banner' : '+ Pin Advert'}
+                            {p.isPinnedTop ? 'Pinned Top' : 'Pin to Banner'}
                           </button>
                         </td>
 
-                        <td className="p-3.5">
-                          <span
-                            className={`rounded px-2 py-0.5 text-[9px] font-black ${
-                              p.status === 'active'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : p.status === 'sold'
-                                ? 'bg-purple-100 text-purple-800'
-                                : 'bg-slate-200 text-slate-700'
-                            }`}
-                          >
-                            {p.status.toUpperCase()}
-                          </span>
-                          <div className="text-[9px] text-slate-400 mt-0.5">
-                            {p.viewsCount || 0} views • {p.whatsappClicks || 0} leads
-                          </div>
-                        </td>
-
-                        <td className="p-3.5 text-right space-x-1 whitespace-nowrap">
-                          <button
-                            onClick={() => handleToggleSold(p)}
-                            className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-200"
-                          >
-                            {p.status === 'sold' ? 'Activate' : 'Mark Sold'}
-                          </button>
-
+                        <td className="p-3.5 text-right space-x-1.5 whitespace-nowrap">
                           <button
                             onClick={() => setSelectedProductForFlyer(p)}
-                            className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-emerald-700"
-                            title="Generate WhatsApp Status Flyer"
+                            className="rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 transition"
                           >
-                            <Share2 className="h-3.5 w-3.5" />
+                            WhatsApp Flyer
                           </button>
 
                           <button
                             onClick={() => handleDeleteProduct(p.id, p.title)}
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                            title="Delete"
+                            disabled={actionLoading === `del-prod-${p.id}`}
+                            className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100 transition"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
                           </button>
                         </td>
                       </tr>
@@ -1448,330 +1486,48 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* ================= TAB 4: UPLOAD TERMINAL ================= */}
-          {activeNav === 'upload' && (
-            <div className="max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xs space-y-6">
-              <div className="border-b border-slate-200 pb-3">
-                <span className="rounded bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 text-[10px] font-bold">
-                  Concierge Upload Form
-                </span>
-                <h2 className="mt-1 text-base sm:text-lg font-black text-slate-900">
-                  Publish Goods for Client & Record Listing Fee
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Select the merchant, attach product photos, set the price, and describe the problem solved.
-                </p>
-              </div>
-
-              <form onSubmit={handleUploadProduct} className="space-y-4">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                      1. Select Merchant / Client *
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddMerchantModal(true)}
-                      className="text-[11px] font-bold text-blue-600 hover:underline"
-                    >
-                      + Register New Client First
-                    </button>
-                  </div>
-
-                  <select
-                    value={prodSellerId}
-                    onChange={(e) => setProdSellerId(e.target.value)}
-                    required
-                    className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs focus:border-blue-600 focus:outline-none"
-                  >
-                    {sellers.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.businessName || s.location}) - Phone: {s.phone}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Product Title *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 1000W All-in-One Solar Hybrid Generator & Inverter"
-                      value={prodTitle}
-                      onChange={(e) => setProdTitle(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:border-blue-600 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Category *
-                    </label>
-                    <select
-                      value={prodCategory}
-                      onChange={(e) => setProdCategory(e.target.value as Category)}
-                      className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:border-blue-600 focus:outline-none"
-                    >
-                      <option value="Solar & Power Backup">Solar & Power Backup</option>
-                      <option value="Water & Home Tech">Water & Home Tech</option>
-                      <option value="Phones & Computers">Phones & Computers</option>
-                      <option value="Agri & Food Processing">Agri & Food Processing</option>
-                      <option value="Fashion & Beauty">Fashion & Beauty</option>
-                      <option value="Vehicles & Auto">Vehicles & Auto</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Selling Price (UGX) *
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      placeholder="e.g. 1850000"
-                      value={prodPrice}
-                      onChange={(e) => setProdPrice(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:border-blue-600 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Original Price (UGX - Optional)
-                    </label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 2200000"
-                      value={prodOriginalPrice}
-                      onChange={(e) => setProdOriginalPrice(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:border-blue-600 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Condition *
-                    </label>
-                    <select
-                      value={prodCondition}
-                      onChange={(e) => setProdCondition(e.target.value as ProductCondition)}
-                      className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:border-blue-600 focus:outline-none"
-                    >
-                      <option value="Brand New">Brand New</option>
-                      <option value="Like New">Like New</option>
-                      <option value="Gently Used">Gently Used</option>
-                      <option value="Refurbished">Refurbished</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    What Problem Does This Solve in Uganda? *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Stops Umeme blackouts. Powers Wi-Fi and TV for 14 hours."
-                    value={prodProblemSolved}
-                    onChange={(e) => setProdProblemSolved(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:border-blue-600 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="Full specifications, inclusions, shop warranty details..."
-                    value={prodDescription}
-                    onChange={(e) => setProdDescription(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 p-2.5 text-xs focus:border-blue-600 focus:outline-none"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-semibold text-slate-700">
-                      Product Photos (Multi-Image Showcase)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setProdImageUrls([...prodImageUrls, ''])}
-                      className="text-[11px] font-bold text-blue-600 hover:underline"
-                    >
-                      + Add Image URL
-                    </button>
-                  </div>
-
-                  {prodImageUrls.map((url, idx) => (
-                    <div key={idx} className="flex gap-2">
-                      <input
-                        type="url"
-                        placeholder="https://images.unsplash.com/..."
-                        value={url}
-                        onChange={(e) => {
-                          const updated = [...prodImageUrls];
-                          updated[idx] = e.target.value;
-                          setProdImageUrls(updated);
-                        }}
-                        className="flex-1 rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
-                      />
-                      {prodImageUrls.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => setProdImageUrls(prodImageUrls.filter((_, i) => i !== idx))}
-                          className="rounded-lg p-2 text-slate-400 hover:text-rose-600"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Package Selection */}
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-900">
-                      Listing Package Plan
-                    </span>
-                    <span className="text-xs font-black text-blue-600">
-                      Listing Fee: {formatPrice(prodListingFee)}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProdListingPlan('Basic');
-                        setProdListingFee(15000);
-                        setProdIsPinnedTop(false);
-                      }}
-                      className={`p-3 rounded-xl border text-left transition ${
-                        prodListingPlan === 'Basic'
-                          ? 'border-blue-600 bg-white shadow-xs'
-                          : 'border-slate-200 bg-white/60'
-                      }`}
-                    >
-                      <p className="text-xs font-bold text-slate-900">Basic</p>
-                      <p className="text-[10px] text-slate-500">UGX 15,000 / mo</p>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProdListingPlan('Featured');
-                        setProdListingFee(25000);
-                        setProdIsPinnedTop(false);
-                      }}
-                      className={`p-3 rounded-xl border text-left transition ${
-                        prodListingPlan === 'Featured'
-                          ? 'border-blue-600 bg-white shadow-xs'
-                          : 'border-slate-200 bg-white/60'
-                      }`}
-                    >
-                      <p className="text-xs font-bold text-slate-900">Featured</p>
-                      <p className="text-[10px] text-slate-500">UGX 25,000 / mo</p>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProdListingPlan('VIP');
-                        setProdListingFee(35000);
-                        setProdIsPinnedTop(true);
-                      }}
-                      className={`p-3 rounded-xl border text-left transition ${
-                        prodListingPlan === 'VIP'
-                          ? 'border-blue-600 bg-white shadow-xs'
-                          : 'border-slate-200 bg-white/60'
-                      }`}
-                    >
-                      <p className="text-xs font-bold text-slate-900">★ VIP Spotlight</p>
-                      <p className="text-[10px] text-slate-500">UGX 35,000 / mo</p>
-                    </button>
-                  </div>
-
-                  <div className="pt-1 flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="pinTopCheckbox"
-                      checked={prodIsPinnedTop}
-                      onChange={(e) => setProdIsPinnedTop(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600"
-                    />
-                    <label htmlFor="pinTopCheckbox" className="text-xs font-bold text-slate-800">
-                      Pin this item to the moving top hero banner on the client marketplace
-                    </label>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={actionLoading === 'upload-prod'}
-                  className="w-full rounded-xl bg-blue-600 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-blue-700 transition shadow-xs disabled:opacity-50"
-                >
-                  {actionLoading === 'upload-prod' ? 'Publishing...' : 'Publish Product to Live Marketplace'}
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* ================= TAB 5: LEADS & INQUIRIES ================= */}
+          {/* ================= TAB 5: CUSTOMER INQUIRIES & ORDERS ================= */}
           {activeNav === 'orders' && (
             <div className="space-y-4">
-              <div>
-                <h2 className="text-base font-black text-slate-900">Customer Reservations & Leads</h2>
-                <p className="text-xs text-slate-500">
-                  Buyer callback requests and verified reservation leads.
-                </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Customer Reservations & Inquiries</h2>
+                  <p className="text-xs text-slate-500">
+                    Buyers who filled out product order forms for direct merchant contact.
+                  </p>
+                </div>
               </div>
 
-              <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-2xs">
+              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                 <table className="w-full min-w-[700px] text-left border-collapse text-xs">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-500">
-                      <th className="p-3.5">ID</th>
-                      <th className="p-3.5">Product Title</th>
-                      <th className="p-3.5">Buyer Contacts & Location</th>
-                      <th className="p-3.5">Notes</th>
+                    <tr className="border-b border-slate-200 bg-slate-50/90 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      <th className="p-3.5">Customer Name</th>
+                      <th className="p-3.5">Phone / Contact</th>
+                      <th className="p-3.5">Location</th>
+                      <th className="p-3.5">Requested Product</th>
+                      <th className="p-3.5">Date</th>
                       <th className="p-3.5 text-right">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {orders.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="p-8 text-center text-slate-400">
-                          No buyer leads recorded yet.
+                        <td colSpan={6} className="p-6 text-center text-slate-400 text-xs">
+                          No pending customer reservations. Inquiries arrive here automatically.
                         </td>
                       </tr>
                     ) : (
-                      orders.map((ord) => (
-                        <tr key={ord.id} className="hover:bg-slate-50 transition">
-                          <td className="p-3.5 font-mono text-[11px] text-slate-500">{ord.id}</td>
-                          <td className="p-3.5">
-                            <p className="font-bold text-slate-900">{ord.productTitle}</p>
-                            <p className="text-[10px] text-slate-500">{formatPrice(ord.productPrice)}</p>
-                          </td>
-                          <td className="p-3.5">
-                            <p className="font-bold text-slate-900">{ord.buyerName}</p>
-                            <p className="font-mono text-[10px] text-slate-600">{ord.buyerPhone}</p>
-                            <p className="text-[10px] text-slate-400">{ord.buyerLocation}</p>
-                          </td>
-                          <td className="p-3.5 text-[11px] text-slate-600">{ord.notes || '—'}</td>
+                      orders.map((o) => (
+                        <tr key={o.id} className="hover:bg-slate-50/70 transition">
+                          <td className="p-3.5 font-semibold text-slate-900">{o.buyerName}</td>
+                          <td className="p-3.5 font-mono text-slate-800">{o.buyerPhone}</td>
+                          <td className="p-3.5 text-slate-600">{o.buyerLocation}</td>
+                          <td className="p-3.5 font-semibold text-slate-800">{o.productTitle}</td>
+                          <td className="p-3.5 text-slate-500 text-[11px]">{new Date(o.createdAt).toLocaleDateString()}</td>
                           <td className="p-3.5 text-right">
-                            <span className="rounded bg-emerald-100 px-2 py-0.5 text-[9px] font-black text-emerald-800">
-                              {ord.status.toUpperCase()}
+                            <span className="rounded bg-emerald-50 border border-emerald-200 text-emerald-800 font-semibold px-2 py-0.5 text-[10px]">
+                              {o.status}
                             </span>
                           </td>
                         </tr>
@@ -1783,77 +1539,48 @@ export default function AdminPage() {
             </div>
           )}
         </main>
-
-        {/* Subtle Admin System Footer */}
-        <footer className="mt-auto border-t border-slate-200 bg-white px-6 py-3.5 text-center sm:flex sm:items-center sm:justify-between text-[11px] text-slate-500">
-          <div className="flex items-center justify-center sm:justify-start gap-2">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
-            <span className="font-semibold text-slate-700">ShidMagic Admin Operations</span>
-            <span>• Terminal v2.4</span>
-          </div>
-          <p className="mt-1 sm:mt-0 text-[10px] text-slate-400">
-            Kampala, Uganda • Verified Physical Shop Listings Concierge
-          </p>
-        </footer>
       </div>
 
-      {/* ================= MODAL: REGISTER NEW MERCHANT ================= */}
+      {/* ================= MODAL: REGISTER MERCHANT ================= */}
       {showAddMerchantModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-base font-black text-slate-900">Register New Merchant / Client</h3>
-                <p className="text-xs text-slate-500">Record merchant details, listing fee plan, and camera visits.</p>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl border border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <h3 className="text-sm font-bold text-slate-900">Register New Client Merchant</h3>
               <button onClick={() => setShowAddMerchantModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateMerchant} className="space-y-3">
+            <form onSubmit={handleCreateMerchant} className="space-y-3.5">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Merchant Full Name *
+                  Merchant Name *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Kato Samuel Raymond"
+                  placeholder="e.g. Kato Solar & Electricals"
                   value={newMerchantName}
                   onChange={(e) => setNewMerchantName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Business / Shop Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Kato Solar & Electricals Ltd"
-                  value={newMerchantBusiness}
-                  onChange={(e) => setNewMerchantBusiness(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Phone Number (Calls) *
+                    Phone Number *
                   </label>
                   <input
                     type="tel"
                     required
-                    placeholder="+256772123456"
+                    placeholder="+256 772 123456"
                     value={newMerchantPhone}
                     onChange={(e) => setNewMerchantPhone(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
                   />
                 </div>
-
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     WhatsApp Number
@@ -1863,49 +1590,49 @@ export default function AdminPage() {
                     placeholder="256772123456"
                     value={newMerchantWhatsapp}
                     onChange={(e) => setNewMerchantWhatsapp(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Physical Location in Kampala *
+                  Physical Shop Location *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Pioneer Mall, 1st Floor Shop 14, Kampala Road"
+                  placeholder="e.g. Pioneer Mall, 1st Floor Shop 14, Kampala CBD"
                   value={newMerchantLocation}
                   onChange={(e) => setNewMerchantLocation(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Initial Listing Package
+                    Subscription Plan
                   </label>
                   <select
                     value={newMerchantPlan}
                     onChange={(e) => setNewMerchantPlan(e.target.value as ListingPlan)}
-                    className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
                   >
-                    <option value="Basic">Basic (UGX 15,000)</option>
-                    <option value="Featured">Featured (UGX 25,000)</option>
-                    <option value="VIP">VIP Spotlight (UGX 35,000)</option>
+                    <option value="Basic">Basic (UGX 15,000/mo)</option>
+                    <option value="Featured">Featured (UGX 25,000/mo)</option>
+                    <option value="VIP">VIP Priority (UGX 35,000/mo)</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Subscription Period
+                    Initial Period
                   </label>
                   <select
                     value={newMerchantDurationDays}
                     onChange={(e) => setNewMerchantDurationDays(Number(e.target.value))}
-                    className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
                   >
                     <option value={30}>30 Days (1 Month)</option>
                     <option value={60}>60 Days (2 Months)</option>
@@ -1914,46 +1641,20 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="photographyCheckbox"
-                  checked={newMerchantPhotography}
-                  onChange={(e) => setNewMerchantPhotography(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600"
-                />
-                <label htmlFor="photographyCheckbox" className="text-xs font-semibold text-slate-700">
-                  Photography service booked (We will visit shop or take photos)
-                </label>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Operator Notes (Internal)
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="e.g. Paid cash UGX 25,000 on visit. Verified ID card."
-                  value={newMerchantNotes}
-                  onChange={(e) => setNewMerchantNotes(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 p-2 text-xs focus:border-blue-600 focus:outline-none"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2">
+              <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowAddMerchantModal(false)}
-                  className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  className="rounded-lg border border-slate-200 px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading === 'create-merchant'}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-black text-white hover:bg-blue-700 shadow-xs"
+                  className="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition shadow-2xs"
                 >
-                  {actionLoading === 'create-merchant' ? 'Registering...' : 'Register Merchant'}
+                  {actionLoading === 'create-merchant' ? 'Registering...' : 'Register Client'}
                 </button>
               </div>
             </form>
@@ -1961,11 +1662,11 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ================= MODAL: FLYER GENERATOR ================= */}
+      {/* WhatsApp Flyer Modal */}
       {selectedProductForFlyer && (
         <FlyerModal
-          isOpen={true}
           product={selectedProductForFlyer}
+          isOpen={Boolean(selectedProductForFlyer)}
           onClose={() => setSelectedProductForFlyer(null)}
         />
       )}
