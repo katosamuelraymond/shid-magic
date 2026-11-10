@@ -31,7 +31,7 @@ export default function AdminLoginPage() {
       }
 
       // Successful login
-      router.push('/admin');
+      router.push('/');
       router.refresh();
     } catch (err: any) {
       setError(err.message || 'Login request failed');

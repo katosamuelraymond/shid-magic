@@ -149,7 +149,7 @@ export default function AdminPage() {
   const handleLogout = async () => {
     try {
       await fetch('/api/admin/auth', { method: 'DELETE' });
-      router.push('/admin/login');
+      router.push('/login');
       router.refresh();
     } catch (err) {
       console.error(err);
