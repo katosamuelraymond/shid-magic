@@ -31,7 +31,7 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
     <section className="relative bg-[#064e3b] text-white border-b border-[#04382a] overflow-hidden">
       <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 pt-3 sm:pt-4 pb-5 sm:pb-6">
         {/* Main Stage Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8 items-center lg:min-h-[300px]">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-stretch">
           {/* Mobile Product Image Display */}
           <div className="lg:hidden w-full">
             <Link
@@ -53,8 +53,8 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
             </Link>
           </div>
 
-          {/* Text Details & Narrative (7 Cols Desktop) */}
-          <div className="lg:col-span-7 flex flex-col justify-between space-y-2.5 lg:h-[290px]">
+          {/* Text Details & Narrative (7 Cols Desktop) - Natural dynamic height, zero clipping */}
+          <div className="lg:col-span-7 flex flex-col justify-between space-y-3 py-1">
             {/* Category & Badge */}
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold tracking-wider text-amber-300 uppercase bg-[#04382a] border border-emerald-600/60 px-2.5 py-0.5 rounded flex-shrink-0">
@@ -87,7 +87,7 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
             </div>
 
             {/* Price & Merchant */}
-            <div className="flex flex-wrap items-baseline gap-2.5">
+            <div className="flex flex-wrap items-baseline gap-2.5 pt-0.5">
               <span className="text-xl sm:text-2xl lg:text-3xl font-black text-amber-400 tracking-tight">
                 {formatPrice(current.price)}
               </span>
@@ -96,18 +96,18 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
                   {formatPrice(current.originalPrice)}
                 </span>
               )}
-              <span className="text-xs text-emerald-100 bg-[#04382a] px-2.5 py-0.5 rounded border border-emerald-700/50 truncate max-w-[280px] sm:max-w-none">
+              <span className="text-xs text-emerald-100 bg-[#04382a] px-2.5 py-1 rounded border border-emerald-700/50 truncate max-w-[280px] sm:max-w-none">
                 Merchant: {current.sellerName} ({current.sellerLocation})
               </span>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-3 pt-1">
+            {/* Action Buttons: Fully visible with clear spacing & generous hit area */}
+            <div className="flex flex-wrap items-center gap-3 pt-3 pb-1">
               <a
                 href={`https://wa.me/${current.sellerWhatsapp || current.sellerPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello ${current.sellerName}, I found your listing for "${current.title}" on ShidMagic. Is this available in stock?`)}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-800 border border-emerald-400/50 px-4 sm:px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-900 transition shadow-xs"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#16a34a] hover:bg-[#15803d] border border-emerald-400/40 px-5 py-2.5 text-xs font-bold text-white transition shadow-sm"
               >
                 <MessageCircle className="h-4 w-4" />
                 <span>Chat on WhatsApp</span>
@@ -115,7 +115,7 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
 
               <Link
                 href={`/product/${current.id}`}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-4 sm:px-5 py-2.5 text-xs font-black text-slate-950 hover:bg-amber-300 transition shadow-xs"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 px-5 py-2.5 text-xs font-black text-slate-950 transition shadow-sm"
               >
                 <span>Inspect Details</span>
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -124,7 +124,7 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
           </div>
 
           {/* Desktop Large Image Canvas (5 Cols Desktop) */}
-          <div className="hidden lg:flex lg:col-span-5 h-[290px] w-full">
+          <div className="hidden lg:flex lg:col-span-5 min-h-[300px] w-full">
             <Link
               href={`/product/${current.id}`}
               className="relative h-full w-full rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition duration-300 block group border border-emerald-700/60 bg-slate-900"
@@ -146,7 +146,7 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
         </div>
 
         {/* Bottom Interactive Thumbnail Reel */}
-        <div className="mt-5 pt-3.5 border-t border-emerald-800/80">
+        <div className="mt-8 pt-5 border-t border-emerald-800/80">
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-2.5">
             {spotlightItems.map((item, idx) => {
               const isActive = activeIndex === idx;
