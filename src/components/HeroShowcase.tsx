@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Product } from '@/lib/types';
 import { formatPrice } from '@/lib/utils';
-import { MessageCircle, ShieldCheck, ArrowRight, Eye } from 'lucide-react';
 
 interface HeroShowcaseProps {
   products: Product[];
@@ -19,7 +18,7 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
     if (spotlightItems.length === 0) return;
     const interval = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % spotlightItems.length);
-    }, 4500);
+    }, 4200);
     return () => clearInterval(interval);
   }, [activeIndex, spotlightItems.length]);
 
@@ -29,14 +28,15 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
 
   return (
     <section className="relative bg-[#064e3b] text-white border-b border-[#04382a] overflow-hidden">
-      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 pt-3 sm:pt-4 pb-5 sm:pb-6">
-        {/* Main Stage Grid - Persistent Fixed Dimensions */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8 items-center lg:h-[290px]">
-          {/* Mobile Product Image Display */}
+      {/* Tightly spaced container so the first word starts immediately below the navbar */}
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 pt-2.5 sm:pt-3.5 pb-5 sm:pb-6">
+        {/* Main Stage Grid - Locked uniform height across all slides */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8 items-center lg:min-h-[300px]">
+          {/* 1. On Mobile: Large, Bold Fitted Product Image occupying the whole card space */}
           <div className="lg:hidden w-full">
             <Link
               href={`/product/${current.id}`}
-              className="relative h-[220px] sm:h-[260px] w-full overflow-hidden rounded-xl bg-slate-900 border border-emerald-700/60 block shadow-md group"
+              className="relative h-[220px] sm:h-[260px] w-full overflow-hidden rounded-2xl bg-slate-900 border border-emerald-700/60 block shadow-md group"
             >
               <img
                 src={current.images[0]}
@@ -44,93 +44,96 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
                 key={current.id}
                 className="h-full w-full object-cover group-hover:scale-102 transition duration-500"
               />
-              <span className="absolute bottom-2.5 left-2.5 rounded-lg bg-black/85 px-2.5 py-1 text-xs font-bold text-white shadow border border-emerald-800">
-                Tap to Inspect Details
+              <span className="absolute bottom-2.5 left-2.5 rounded-lg bg-black/85 px-2.5 py-1 text-[11px] font-bold text-white shadow border border-emerald-800">
+                Tap to View Photos
               </span>
-              <span className="absolute top-2.5 right-2.5 rounded-lg bg-amber-400 px-3 py-1 text-xs font-black text-slate-950 shadow">
+              <span className="absolute top-2.5 right-2.5 rounded-lg bg-amber-400 px-2.5 py-1 text-xs font-black text-slate-950 shadow">
                 {formatPrice(current.price)}
               </span>
             </Link>
           </div>
 
-          {/* Text Details & Narrative (7 Cols Desktop) - Persistent lg:h-[290px] with zero overflow */}
-          <div className="lg:col-span-7 flex flex-col justify-between lg:h-[290px] overflow-hidden py-1">
-            {/* Top Content Block */}
-            <div className="space-y-2">
-              {/* Category & Badge */}
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold tracking-wider text-amber-300 uppercase bg-[#04382a] border border-emerald-600/60 px-2 py-0.5 rounded flex-shrink-0">
-                  Verified Spotlight #{activeIndex + 1}
-                </span>
-                <span className="text-xs text-emerald-200 font-medium truncate">
-                  {current.category}
-                </span>
-              </div>
-
-              {/* Title */}
-              <h1 className="text-lg sm:text-xl lg:text-2xl font-black text-white tracking-tight leading-snug line-clamp-2">
-                {current.title}
-              </h1>
-
-              {/* Problem Solved Highlight Box */}
-              <div className="flex items-center bg-[#04382a] border-l-4 border-amber-400 px-3 py-1.5 rounded-r-md">
-                <p className="text-xs font-semibold text-emerald-100 leading-snug line-clamp-2">
-                  {current.problemSolved || 'Directly inspected & verified by ShidMagic team for reliability in Kampala.'}
-                </p>
-              </div>
-
-              {/* Price & Merchant */}
-              <div className="flex flex-wrap items-baseline gap-2 pt-0.5">
-                <span className="text-xl sm:text-2xl font-black text-amber-400 tracking-tight">
-                  {formatPrice(current.price)}
-                </span>
-                {current.originalPrice && current.originalPrice > current.price && (
-                  <span className="text-xs text-emerald-300/60 line-through">
-                    {formatPrice(current.originalPrice)}
-                  </span>
-                )}
-                <span className="text-xs text-emerald-100 bg-[#04382a] px-2 py-0.5 rounded border border-emerald-700/50 truncate max-w-[280px] sm:max-w-none">
-                  Merchant: {current.sellerName} ({current.sellerLocation})
-                </span>
-              </div>
+          {/* 2. Text Details & Narrative (7 Cols Desktop) - Every slot locked to exact identical height */}
+          <div className="lg:col-span-7 flex flex-col justify-between space-y-2 sm:space-y-2.5 lg:h-[290px]">
+            {/* Slot A: Category and Badge (Locked Height: 24px) */}
+            <div className="h-6 flex items-center gap-2">
+              <span className="text-[10px] sm:text-[11px] font-black tracking-wider text-amber-300 uppercase bg-[#04382a] border border-emerald-600/60 px-2 py-0.5 rounded flex-shrink-0">
+                Verified Solution #{activeIndex + 1}
+              </span>
+              <span className="text-[11px] text-emerald-200 font-medium truncate">
+                {current.category}
+              </span>
             </div>
 
-            {/* Bottom Action Buttons: Guaranteed visible inside container, never clipped by thumbnails */}
-            <div className="flex items-center gap-3 pt-2">
+            {/* Slot B: Title (Locked Height: 54px on mobile, 60px on desktop) */}
+            <div className="h-[52px] sm:h-[60px] flex items-center">
+              <h1 className="text-lg sm:text-2xl lg:text-3xl font-black text-white tracking-tight leading-snug line-clamp-2">
+                {current.title}
+              </h1>
+            </div>
+
+            {/* Slot C: Problem Solved Box (Locked Height: 44px on mobile, 46px on desktop) */}
+            <div className="h-[44px] sm:h-[46px] flex items-center bg-[#04382a] border-l-4 border-amber-400 px-3 rounded-r-md overflow-hidden">
+              <p className="text-xs sm:text-sm font-semibold text-emerald-100 leading-snug line-clamp-2">
+                {current.problemSolved || 'Directly inspected & verified by ShidMagic team for reliability.'}
+              </p>
+            </div>
+
+            {/* Slot D: Description (Locked Height: 36px on mobile, 38px on desktop) */}
+            <div className="h-[36px] sm:h-[38px] flex items-center overflow-hidden">
+              <p className="text-xs sm:text-sm text-emerald-100/90 line-clamp-2 leading-relaxed">
+                {current.description}
+              </p>
+            </div>
+
+            {/* Slot E: Price & Merchant (Locked Height: 32px on mobile, 36px on desktop) */}
+            <div className="h-[32px] sm:h-[36px] flex flex-wrap items-baseline gap-2.5 overflow-hidden">
+              <span className="text-xl sm:text-2xl lg:text-3xl font-black text-amber-400 tracking-tight">
+                {formatPrice(current.price)}
+              </span>
+              {current.originalPrice && current.originalPrice > current.price && (
+                <span className="text-xs sm:text-sm text-emerald-300/60 line-through">
+                  {formatPrice(current.originalPrice)}
+                </span>
+              )}
+              <span className="text-[11px] text-emerald-100 bg-[#04382a] px-2 py-0.5 rounded border border-emerald-700/50 truncate max-w-[260px] sm:max-w-none">
+                Merchant: {current.sellerName} ({current.sellerLocation})
+              </span>
+            </div>
+
+            {/* Slot F: CTAs (Locked Height: 38px on mobile, 42px on desktop) */}
+            <div className="h-[38px] sm:h-[42px] flex items-center gap-2.5 pt-0.5">
+              <Link
+                href={`/product/${current.id}`}
+                className="h-full inline-flex items-center rounded-lg bg-amber-400 px-4 sm:px-5 text-xs font-black text-slate-950 hover:bg-amber-300 transition shadow-sm"
+              >
+                Inspect Solution Details
+              </Link>
               <a
                 href={`https://wa.me/${current.sellerWhatsapp || current.sellerPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello ${current.sellerName}, I found your listing for "${current.title}" on ShidMagic. Is this available in stock?`)}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg bg-[#16a34a] hover:bg-[#15803d] border border-emerald-400/40 px-4 sm:px-5 py-2 text-xs font-bold text-white transition shadow-sm"
+                className="h-full inline-flex items-center rounded-lg border border-emerald-400 bg-transparent px-3.5 sm:px-4 text-xs font-bold text-white hover:bg-emerald-800 transition"
               >
-                <MessageCircle className="h-4 w-4" />
-                <span>Chat on WhatsApp</span>
+                Chat on WhatsApp
               </a>
-
-              <Link
-                href={`/product/${current.id}`}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 px-4 sm:px-5 py-2 text-xs font-black text-slate-950 transition shadow-sm"
-              >
-                <span>Inspect Details</span>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
             </div>
           </div>
 
-          {/* Desktop Large Image Canvas (5 Cols Desktop) - Persistent lg:h-[290px] */}
+          {/* 3. Desktop Large Image Canvas (5 Cols Desktop) - Occupies the entire 5-column slot */}
           <div className="hidden lg:flex lg:col-span-5 h-[290px] w-full">
             <Link
               href={`/product/${current.id}`}
-              className="relative h-full w-full rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition duration-300 block group border border-emerald-700/60 bg-slate-900"
+              className="relative h-full w-full rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition duration-300 block group border border-emerald-700/60 bg-slate-900"
             >
               <img
                 src={current.images[0]}
                 alt={current.title}
                 key={current.id}
-                className="h-full w-full object-cover group-hover:scale-103 transition duration-500"
+                className="h-full w-full object-cover group-hover:scale-105 transition duration-500"
               />
-              <div className="absolute bottom-3 left-3 bg-black/85 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow border border-emerald-800">
-                Click to Inspect Details & Photos
+              <div className="absolute bottom-3 left-3 bg-black/85 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow border border-emerald-800">
+                Click to Inspect & View Photos
               </div>
               <div className="absolute top-3 right-3 bg-amber-400 text-slate-950 text-xs font-black px-3 py-1.5 rounded-lg shadow">
                 {formatPrice(current.price)}
@@ -139,8 +142,17 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
           </div>
         </div>
 
-        {/* Bottom Interactive Thumbnail Reel */}
+        {/* Bottom Interactive Thumbnail Reel - Locked uniform card heights */}
         <div className="mt-5 pt-3.5 border-t border-emerald-800/80">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-200">
+              Moving Spotlight Reel (Click any item to view)
+            </span>
+            <span className="text-[11px] font-medium text-amber-300">
+              Auto-advancing • #{activeIndex + 1} of {spotlightItems.length}
+            </span>
+          </div>
+
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-2.5">
             {spotlightItems.map((item, idx) => {
               const isActive = activeIndex === idx;
@@ -148,7 +160,7 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
                 <button
                   key={item.id}
                   onClick={() => setActiveIndex(idx)}
-                  className={`h-[72px] text-left rounded-lg p-2.5 transition relative overflow-hidden flex flex-col justify-between ${
+                  className={`h-[68px] text-left rounded-lg p-2 transition relative overflow-hidden flex flex-col justify-between ${
                     isActive
                       ? 'border-2 border-amber-400 bg-[#04382a] text-white shadow-sm'
                       : 'border border-emerald-800/70 bg-[#064e3b]/80 text-emerald-100 hover:bg-[#04382a]'
@@ -161,16 +173,16 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
                       className="h-9 w-9 rounded-md object-contain bg-white p-0.5 flex-shrink-0"
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold truncate text-white">
+                      <p className="text-[10px] font-bold truncate text-white">
                         {item.title}
                       </p>
-                      <p className={`text-xs font-black ${isActive ? 'text-amber-300' : 'text-emerald-300'}`}>
+                      <p className={`text-[10px] font-black ${isActive ? 'text-amber-300' : 'text-emerald-300'}`}>
                         {formatPrice(item.price)}
                       </p>
                     </div>
                   </div>
 
-                  <div className="mt-1 flex items-center justify-between text-[9px] font-bold">
+                  <div className="mt-1 flex items-center justify-between text-[8px] font-black">
                     {isActive ? (
                       <>
                         <span className="text-amber-300">● ACTIVE NOW</span>
@@ -178,15 +190,16 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
                       </>
                     ) : (
                       <>
-                        <span className="text-emerald-400/80">Slide #{idx + 1}</span>
-                        <span className="text-emerald-400/80">Select</span>
+                        <span className="text-emerald-400/70">Slide #{idx + 1}</span>
+                        <span className="text-emerald-400/70">Click</span>
                       </>
                     )}
                   </div>
 
+                  {/* Progress bar across bottom of active card */}
                   {isActive && (
                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-800 overflow-hidden">
-                      <div className="h-full bg-amber-400 animate-[progress_4.5s_linear]" />
+                      <div className="h-full bg-amber-400 animate-[progress_4.2s_linear]" />
                     </div>
                   )}
                 </button>
