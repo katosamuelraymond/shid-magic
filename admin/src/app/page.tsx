@@ -4,8 +4,6 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  LayoutDashboard,
-  Users,
   Package,
   PlusCircle,
   MessageCircle,
@@ -16,7 +14,6 @@ import {
   ShieldCheck,
   Camera,
   Trash2,
-  Share2,
   Eye,
   Search,
   CheckCircle2,
@@ -30,25 +27,21 @@ import {
   FileText,
   Calendar,
   ExternalLink,
-  ChevronDown,
   Sparkles,
   X,
   Menu,
   Loader2,
   Bell,
   RefreshCw,
-  SlidersHorizontal,
   Building2,
-  ArrowUpRight,
-  CreditCard,
-  CheckSquare,
-  HelpCircle,
-  Settings,
   UploadCloud,
   Edit,
   EyeOff,
   Filter,
   Plus,
+  ArrowRight,
+  Banknote,
+  Check,
 } from 'lucide-react';
 import { Product, Seller, OrderInquiry, Category, ProductCondition, ListingPlan } from '@/lib/types';
 import { formatPrice } from '@/lib/utils';
@@ -57,8 +50,8 @@ import FlyerModal from '@/components/FlyerModal';
 export default function AdminPage() {
   const router = useRouter();
 
-  // Navigation / View State (Focused on Goods & Dashboard)
-  const [activeNav, setActiveNav] = useState<'goods' | 'dashboard' | 'merchants' | 'orders'>('goods');
+  // Navigation / View State
+  const [activeNav, setActiveNav] = useState<'goods' | 'merchants' | 'income' | 'orders'>('goods');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -70,20 +63,23 @@ export default function AdminPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Global Header Search & Filter
+  // Filter State
   const [globalSearch, setGlobalSearch] = useState('');
   const [productFilter, setProductFilter] = useState<'all' | 'active' | 'suspended'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
+  const [merchantFilter, setMerchantFilter] = useState<'all' | 'active' | 'expired' | 'suspended'>('all');
 
   // Modals
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showAddMerchantModal, setShowAddMerchantModal] = useState(false);
+  const [showCollectFeeModal, setShowCollectFeeModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedProductForFlyer, setSelectedProductForFlyer] = useState<Product | null>(null);
+  const [selectedSellerForFee, setSelectedSellerForFee] = useState<any | null>(null);
 
-  // Upload / Edit Form State
+  // Product Form State
   const [formId, setFormId] = useState<string | null>(null);
   const [formTitle, setFormTitle] = useState('');
   const [formCategory, setFormCategory] = useState<Category>('Solar & Power Backup');
@@ -95,7 +91,11 @@ export default function AdminPage() {
   const [formImages, setFormImages] = useState<string[]>([]);
   const [formSellerId, setFormSellerId] = useState('');
   const [formIsPinnedTop, setFormIsPinnedTop] = useState(false);
+
+  // 50MB Uploader State
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [uploadProgressText, setUploadProgressText] = useState<string>('');
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // New Merchant Form State
@@ -106,6 +106,11 @@ export default function AdminPage() {
   const [newMerchantLocation, setNewMerchantLocation] = useState('');
   const [newMerchantPlan, setNewMerchantPlan] = useState<ListingPlan>('Featured');
   const [newMerchantDurationDays, setNewMerchantDurationDays] = useState(30);
+
+  // Fee Collection Modal State
+  const [feeAmount, setFeeAmount] = useState('25000');
+  const [feeMethod, setFeeMethod] = useState<'mtn_momo' | 'airtel_money' | 'cash'>('mtn_momo');
+  const [feeDurationDays, setFeeDurationDays] = useState(30);
 
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ message, type });
@@ -199,25 +204,33 @@ export default function AdminPage() {
     setShowViewModal(true);
   };
 
-  // Handle Photo File Upload (up to 50MB)
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  // Open Fee Collection Modal
+  const handleOpenCollectFeeModal = (seller: any) => {
+    setSelectedSellerForFee(seller);
+    const defaultAmount = seller.packagePlan === 'VIP' ? '35000' : seller.packagePlan === 'Featured' ? '25000' : '15000';
+    setFeeAmount(defaultAmount);
+    setFeeDurationDays(30);
+    setShowCollectFeeModal(true);
+  };
 
-    // Check size limit: 50MB per file
+  // Process File Uploads (Supports 50MB per file with Drag & Drop)
+  const processFiles = async (fileList: FileList | File[]) => {
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
+
     const maxBytes = 50 * 1024 * 1024;
-    for (let i = 0; i < files.length; i++) {
-      if (files[i].size > maxBytes) {
-        showNotification(`File "${files[i].name}" exceeds 50MB limit (${(files[i].size / (1024 * 1024)).toFixed(1)}MB).`, 'error');
+    for (const f of files) {
+      if (f.size > maxBytes) {
+        showNotification(`File "${f.name}" exceeds the 50MB limit (${(f.size / (1024 * 1024)).toFixed(1)}MB).`, 'error');
         return;
       }
     }
 
     setUploadingFiles(true);
+    setUploadProgressText(`Uploading ${files.length} photo(s)...`);
+
     const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-      formData.append('files', files[i]);
-    }
+    files.forEach((f) => formData.append('files', f));
 
     try {
       const res = await fetch('/api/upload', {
@@ -227,15 +240,42 @@ export default function AdminPage() {
       const data = await res.json();
       if (data.success && data.urls) {
         setFormImages((prev) => [...prev, ...data.urls]);
-        showNotification(`Successfully uploaded ${data.count} photo(s).`);
+        showNotification(`Successfully uploaded ${data.count} image(s).`);
       } else {
         showNotification(data.error || 'Failed to upload photo(s)', 'error');
       }
     } catch (err: any) {
-      showNotification(err.message || 'Photo upload failed', 'error');
+      showNotification(err.message || 'Upload error', 'error');
     } finally {
       setUploadingFiles(false);
+      setUploadProgressText('');
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // File Input Change
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      processFiles(e.target.files);
+    }
+  };
+
+  // Drag and Drop Handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+    if (e.dataTransfer.files) {
+      processFiles(e.dataTransfer.files);
     }
   };
 
@@ -243,7 +283,7 @@ export default function AdminPage() {
     setFormImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
-  // Save Product (Create or Update)
+  // Save Product (Create or Edit)
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTitle.trim() || !formPrice || !formSellerId) {
@@ -322,21 +362,34 @@ export default function AdminPage() {
     }
   };
 
-  // Toggle Pinned Top Advert
-  const handleTogglePinTop = async (productId: string, currentPinned: boolean, title: string) => {
-    setActionLoading(`pin-${productId}`);
+  // Submit Collect Fee & Renew
+  const handleConfirmCollectFee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSellerForFee) return;
+
+    setActionLoading('collect-fee');
     try {
-      const res = await fetch(`/api/products/${productId}`, {
+      const feeNum = parseInt(feeAmount, 10) || 0;
+      const res = await fetch('/api/sellers', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isPinnedTop: !currentPinned }),
+        body: JSON.stringify({
+          action: 'renew_subscription',
+          sellerId: selectedSellerForFee.id,
+          days: feeDurationDays,
+          feePaid: feeNum,
+        }),
       });
+
       const data = await res.json();
       if (data.success) {
-        showNotification(!currentPinned ? `Pinned "${title}" to top banner!` : `Unpinned "${title}".`);
+        showNotification(
+          `Payment of UGX ${feeNum.toLocaleString()} recorded via ${feeMethod.toUpperCase().replace('_', ' ')}. Shop renewed for ${feeDurationDays} days!`
+        );
+        setShowCollectFeeModal(false);
         loadData();
       } else {
-        showNotification(data.error || 'Failed to update pin', 'error');
+        showNotification(data.error || 'Fee collection failed', 'error');
       }
     } catch (err: any) {
       showNotification(err.message, 'error');
@@ -345,27 +398,7 @@ export default function AdminPage() {
     }
   };
 
-  // Delete Listing
-  const handleDeleteProduct = async (id: string, title: string) => {
-    if (!window.confirm(`Are you sure you want to PERMANENTLY DELETE "${title}"?`)) return;
-    setActionLoading(`del-prod-${id}`);
-    try {
-      const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        showNotification(`Listing "${title}" permanently deleted.`);
-        loadData();
-      } else {
-        showNotification(data.error || 'Failed to delete listing', 'error');
-      }
-    } catch (err: any) {
-      showNotification(err.message, 'error');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // Toggle Single Product Visibility (Hide / Show)
+  // Toggle Single Product Visibility
   const handleToggleProductStatus = async (p: Product) => {
     const newStatus = p.status === 'active' ? 'suspended' : 'active';
     setActionLoading(`status-${p.id}`);
@@ -380,7 +413,50 @@ export default function AdminPage() {
         showNotification(newStatus === 'active' ? `"${p.title}" is now ONLINE.` : `"${p.title}" is now HIDDEN.`);
         loadData();
       } else {
-        showNotification(data.error || 'Failed to change status', 'error');
+        showNotification(data.error || 'Failed to update status', 'error');
+      }
+    } catch (err: any) {
+      showNotification(err.message, 'error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Toggle Pinned Top Advert
+  const handleTogglePinTop = async (productId: string, currentPinned: boolean, title: string) => {
+    setActionLoading(`pin-${productId}`);
+    try {
+      const res = await fetch(`/api/products/${productId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPinnedTop: !currentPinned }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotification(!currentPinned ? `Pinned "${title}" to top showcase banner!` : `Unpinned "${title}".`);
+        loadData();
+      } else {
+        showNotification(data.error || 'Failed to update pin', 'error');
+      }
+    } catch (err: any) {
+      showNotification(err.message, 'error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Delete Listing
+  const handleDeleteProduct = async (id: string, title: string) => {
+    if (!window.confirm(`Permanently delete "${title}"?`)) return;
+    setActionLoading(`del-prod-${id}`);
+    try {
+      const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showNotification(`Listing "${title}" permanently deleted.`);
+        loadData();
+      } else {
+        showNotification(data.error || 'Failed to delete listing', 'error');
       }
     } catch (err: any) {
       showNotification(err.message, 'error');
@@ -444,6 +520,7 @@ export default function AdminPage() {
   const activeProductsCount = products.filter((p) => p.status === 'active').length;
   const suspendedProductsCount = products.filter((p) => p.status === 'suspended').length;
   const pinnedCount = products.filter((p) => p.isPinnedTop).length;
+  const expiredSellers = sellers.filter((s) => s.isExpired);
   const totalRevenue = sellers.reduce((acc, s) => acc + (s.totalListingFeesPaid || 0), 0) +
     products.reduce((acc, p) => acc + (p.listingFee || 0), 0);
   const totalLeads = products.reduce((acc, p) => acc + p.whatsappClicks + p.callClicks, 0);
@@ -495,8 +572,8 @@ export default function AdminPage() {
                   <h1 className="text-sm font-bold text-white tracking-tight leading-tight truncate">
                     SHIDMAGIC
                   </h1>
-                  <p className="text-[11px] text-slate-400 font-medium leading-none mt-0.5 truncate">
-                    Operations & Catalog
+                  <p className="text-xs text-slate-400 font-medium leading-none mt-0.5 truncate">
+                    Enterprise Operations
                   </p>
                 </div>
               </div>
@@ -508,7 +585,6 @@ export default function AdminPage() {
               </div>
             )}
 
-            {/* Mobile close button */}
             <button
               onClick={() => setIsMobileSidebarOpen(false)}
               className="md:hidden rounded-lg p-1.5 text-slate-400 hover:bg-[#1a2542] hover:text-white"
@@ -516,7 +592,6 @@ export default function AdminPage() {
               <X className="h-4 w-4" />
             </button>
 
-            {/* Desktop collapse toggle */}
             <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
               className="hidden md:block rounded-lg p-1 text-slate-400 hover:bg-[#1a2542] hover:text-white transition"
@@ -525,13 +600,13 @@ export default function AdminPage() {
             </button>
           </div>
 
-          {/* Navigation Links */}
+          {/* Nav Items */}
           <div className="p-3 space-y-4">
-            {/* 1. GOODS CATALOG (PRIMARY FOCUS) */}
+            {/* 1. GOODS CATALOG */}
             <div>
               {!isSidebarCollapsed && (
-                <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-                  CATALOG MANAGEMENT
+                <p className="px-3 text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                  GOODS & CATALOG
                 </p>
               )}
               <div className="space-y-1">
@@ -550,7 +625,7 @@ export default function AdminPage() {
                   {!isSidebarCollapsed && (
                     <div className="flex items-center justify-between flex-1">
                       <span>Uploaded Goods</span>
-                      <span className="bg-blue-500/20 text-blue-200 text-[10px] font-bold px-1.5 py-0.2 rounded">
+                      <span className="bg-blue-500/20 text-blue-200 text-xs font-bold px-1.5 py-0.2 rounded">
                         {products.length}
                       </span>
                     </div>
@@ -570,11 +645,11 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* 2. MERCHANTS */}
+            {/* 2. REVENUE & CLIENT SHOPS */}
             <div>
               {!isSidebarCollapsed && (
-                <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-                  MERCHANTS & OPS
+                <p className="px-3 text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                  INCOME & SHOPS
                 </p>
               )}
               <div className="space-y-1">
@@ -589,8 +664,17 @@ export default function AdminPage() {
                       : 'text-slate-300 hover:bg-[#15203b] hover:text-white'
                   }`}
                 >
-                  <Users className="h-4 w-4 flex-shrink-0" />
-                  {!isSidebarCollapsed && <span>Client Shops ({sellers.length})</span>}
+                  <Building2 className="h-4 w-4 flex-shrink-0" />
+                  {!isSidebarCollapsed && (
+                    <div className="flex items-center justify-between flex-1">
+                      <span>Client Shops</span>
+                      {expiredSellers.length > 0 && (
+                        <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-1.5 py-0.2 rounded">
+                          {expiredSellers.length} Due
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </button>
 
                 <button
@@ -606,11 +690,11 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* 3. INQUIRIES */}
+            {/* 3. BUYER LEADS */}
             <div>
               {!isSidebarCollapsed && (
-                <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-                  BUYER LEADS
+                <p className="px-3 text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                  CUSTOMER RESERVATIONS
                 </p>
               )}
               <button
@@ -625,7 +709,14 @@ export default function AdminPage() {
                 }`}
               >
                 <MessageCircle className="h-4 w-4 flex-shrink-0" />
-                {!isSidebarCollapsed && <span>Reservations ({orders.length})</span>}
+                {!isSidebarCollapsed && (
+                  <div className="flex items-center justify-between flex-1">
+                    <span>Inquiries</span>
+                    <span className="bg-emerald-500/20 text-emerald-300 text-xs font-bold px-1.5 py-0.2 rounded">
+                      {orders.length}
+                    </span>
+                  </div>
+                )}
               </button>
             </div>
           </div>
@@ -640,7 +731,7 @@ export default function AdminPage() {
             {!isSidebarCollapsed && (
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-white truncate">Samuel Kato</p>
-                <p className="text-[11px] text-slate-400 truncate">Administrator</p>
+                <p className="text-xs text-slate-400 truncate">Administrator</p>
               </div>
             )}
           </div>
@@ -671,10 +762,10 @@ export default function AdminPage() {
               <Menu className="h-4 w-4" />
             </button>
 
-            {/* Quick Upload Button in Header */}
+            {/* Prominent Upload Goods Action */}
             <button
               onClick={handleOpenUploadModal}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition shadow-xs flex-shrink-0"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition shadow-xs flex-shrink-0"
             >
               <PlusCircle className="h-4 w-4" />
               <span>Upload Goods</span>
@@ -691,7 +782,7 @@ export default function AdminPage() {
                 onChange={(e) => setGlobalSearch(e.target.value)}
                 className="w-full rounded-lg border border-slate-200 bg-slate-50/70 py-2 pl-9 pr-14 text-xs text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:bg-white focus:outline-none transition shadow-2xs"
               />
-              <span className="hidden sm:inline-block absolute right-2.5 top-2.5 rounded bg-slate-200/80 px-1.5 py-0.5 text-[10px] font-mono text-slate-600 pointer-events-none">
+              <span className="hidden sm:inline-block absolute right-2.5 top-2.5 rounded bg-slate-200/80 px-1.5 py-0.5 text-xs font-mono text-slate-600 pointer-events-none">
                 Ctrl K
               </span>
             </div>
@@ -706,7 +797,7 @@ export default function AdminPage() {
               className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
             >
               <ExternalLink className="h-3.5 w-3.5 text-slate-500" />
-              <span>View Public Store</span>
+              <span>Public Store</span>
             </a>
 
             <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
@@ -715,7 +806,7 @@ export default function AdminPage() {
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-xs font-bold text-slate-900 leading-tight">Samuel Kato</p>
-                <p className="text-[11px] text-slate-500 leading-tight">Administrator</p>
+                <p className="text-xs text-slate-500 leading-tight">Administrator</p>
               </div>
             </div>
           </div>
@@ -742,55 +833,92 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Content Body */}
+        {/* Main Canvas */}
         <main className="p-5 sm:p-7 space-y-5 flex-1">
-          {/* ================= STATS SUMMARY TILES ================= */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-            <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                TOTAL UPLOADED GOODS
-              </span>
-              <p className="text-2xl font-bold text-slate-900 mt-1">{products.length}</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">{activeProductsCount} Online • {suspendedProductsCount} Hidden</p>
+          {/* ================= REVENUE & INCOME FIRST BANNER ================= */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-2xs">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                    INCOME & LISTING REVENUE:
+                  </span>
+                  <span className="font-bold text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                    CONCIERGE FLATS (OCTOBER 2026)
+                  </span>
+                  <span className="rounded bg-emerald-100 text-emerald-800 px-2 py-0.5 text-xs font-bold uppercase">
+                    ACTIVE
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Direct revenue collected from Kampala physical shops for 30-day listing plans & verification.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  onClick={() => setShowAddMerchantModal(true)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs inline-flex items-center gap-1.5"
+                >
+                  <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                  <span>+ Register Client Shop</span>
+                </button>
+                <div className="rounded-lg bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs">
+                  TOTAL REVENUE: {formatPrice(totalRevenue)}
+                </div>
+              </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                SPOTLIGHT PINNED
-              </span>
-              <p className="text-2xl font-bold text-purple-700 mt-1">{pinnedCount} Items</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Top Banner Showcase</p>
-            </div>
+            {/* Quick Summary Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+              <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3.5">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  TOTAL REVENUE
+                </p>
+                <p className="text-xl font-bold text-slate-900 mt-0.5">{formatPrice(totalRevenue)}</p>
+                <p className="text-xs text-emerald-700 font-semibold mt-1">Listing fees + VIP plans</p>
+              </div>
 
-            <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                CLIENT SHOPS
-              </span>
-              <p className="text-2xl font-bold text-blue-700 mt-1">{sellers.length} Shops</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Verified Kampala Merchants</p>
-            </div>
+              <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3.5">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  CLIENT SHOPS
+                </p>
+                <p className="text-xl font-bold text-blue-700 mt-0.5">{sellers.length} Shops</p>
+                <p className="text-xs text-slate-500 mt-1">Vetted Pioneer Mall, Nakasero</p>
+              </div>
 
-            <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                WHATSAPP BUYER LEADS
-              </span>
-              <p className="text-2xl font-bold text-emerald-700 mt-1">{totalLeads} Clicks</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Direct Inquiries Generated</p>
+              <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3.5">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  SUBSCRIPTION QUEUE
+                </p>
+                <p className={`text-xl font-bold mt-0.5 ${expiredSellers.length > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+                  {expiredSellers.length} Due
+                </p>
+                <p className="text-xs text-slate-500 mt-1">Awaiting 30-day renewal</p>
+              </div>
+
+              <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3.5">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  WHATSAPP LEADS
+                </p>
+                <p className="text-xl font-bold text-slate-900 mt-0.5">{totalLeads} Contacts</p>
+                <p className="text-xs text-slate-500 mt-1">Direct buyer inquiries</p>
+              </div>
             </div>
           </div>
 
-          {/* ================= MAIN GOODS CATALOG VIEW ================= */}
+          {/* ================= TAB 1: GOODS CATALOG TABLE WITH VIEW, EDIT, DELETE ================= */}
           {activeNav === 'goods' && (
             <div className="space-y-4">
-              {/* Controls & Filter Bar */}
-              <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+              {/* Filter Controls */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mr-1">
                     <Filter className="h-3.5 w-3.5 text-slate-500" />
                     <span>Filter:</span>
                   </span>
 
-                  {/* Status Filter */}
                   <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs">
                     {(['all', 'active', 'suspended'] as const).map((st) => (
                       <button
@@ -807,7 +935,6 @@ export default function AdminPage() {
                     ))}
                   </div>
 
-                  {/* Category Dropdown Filter */}
                   <select
                     value={categoryFilter}
                     onChange={(e) => setCategoryFilter(e.target.value)}
@@ -823,7 +950,7 @@ export default function AdminPage() {
                   </select>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <span className="text-xs text-slate-500 font-medium">
                     Showing <strong className="text-slate-900">{filteredProducts.length}</strong> items
                   </span>
@@ -837,15 +964,15 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Goods Table with View, Edit, Delete Actions */}
-              <div className="overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-2xs">
+              {/* Goods Table */}
+              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                 <table className="w-full min-w-[850px] text-left border-collapse text-xs">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/90 text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                      <th className="p-3.5">Photo & Item Details</th>
-                      <th className="p-3.5">Category & Condition</th>
+                    <tr className="border-b border-slate-200 bg-slate-50/90 text-xs font-bold uppercase tracking-wider text-slate-600">
+                      <th className="p-3.5">Photo & Title</th>
+                      <th className="p-3.5">Category</th>
                       <th className="p-3.5">Merchant Shop</th>
-                      <th className="p-3.5">Price (UGX)</th>
+                      <th className="p-3.5">Price</th>
                       <th className="p-3.5">Leads / Views</th>
                       <th className="p-3.5">Status</th>
                       <th className="p-3.5 text-right">Actions</th>
@@ -855,7 +982,7 @@ export default function AdminPage() {
                     {filteredProducts.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="p-8 text-center text-slate-400 text-xs">
-                          No matching goods found. Click &quot;Upload New Goods&quot; to publish your first item.
+                          No items found. Click &quot;Upload New Goods&quot; to publish your first product.
                         </td>
                       </tr>
                     ) : (
@@ -870,11 +997,7 @@ export default function AdminPage() {
                               <div className="flex items-center gap-3">
                                 <div className="h-12 w-12 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
                                   {firstImage ? (
-                                    <img
-                                      src={firstImage}
-                                      alt={p.title}
-                                      className="h-full w-full object-cover"
-                                    />
+                                    <img src={firstImage} alt={p.title} className="h-full w-full object-cover" />
                                   ) : (
                                     <Package className="h-5 w-5 text-slate-400" />
                                   )}
@@ -884,12 +1007,12 @@ export default function AdminPage() {
                                     {p.title}
                                   </p>
                                   {p.problemSolved && (
-                                    <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                                    <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
                                       {p.problemSolved}
                                     </p>
                                   )}
                                   {p.isPinnedTop && (
-                                    <span className="inline-flex items-center gap-1 rounded bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 text-[10px] font-bold mt-1">
+                                    <span className="inline-flex items-center gap-1 rounded bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.2 text-xs font-bold mt-1">
                                       <Sparkles className="h-3 w-3" />
                                       Pinned Top
                                     </span>
@@ -898,23 +1021,23 @@ export default function AdminPage() {
                               </div>
                             </td>
 
-                            {/* Category & Condition */}
+                            {/* Category */}
                             <td className="p-3.5">
                               <p className="font-semibold text-slate-800">{p.category}</p>
-                              <span className="text-[10px] font-medium text-slate-500">{p.condition}</span>
+                              <span className="text-xs text-slate-500">{p.condition}</span>
                             </td>
 
                             {/* Merchant */}
                             <td className="p-3.5">
                               <p className="font-semibold text-slate-800">{p.sellerName}</p>
-                              <p className="text-[10px] text-slate-400">{p.sellerLocation}</p>
+                              <p className="text-xs text-slate-400">{p.sellerLocation}</p>
                             </td>
 
                             {/* Price */}
                             <td className="p-3.5">
                               <p className="font-bold text-slate-900">{formatPrice(p.price)}</p>
                               {p.originalPrice && (
-                                <p className="text-[10px] text-slate-400 line-through">
+                                <p className="text-xs text-slate-400 line-through">
                                   {formatPrice(p.originalPrice)}
                                 </p>
                               )}
@@ -923,7 +1046,7 @@ export default function AdminPage() {
                             {/* Leads */}
                             <td className="p-3.5">
                               <p className="font-semibold text-slate-800">{p.viewsCount} views</p>
-                              <p className="text-[11px] font-semibold text-emerald-700">
+                              <p className="text-xs font-semibold text-emerald-700">
                                 {p.whatsappClicks} WhatsApp leads
                               </p>
                             </td>
@@ -931,7 +1054,7 @@ export default function AdminPage() {
                             {/* Status */}
                             <td className="p-3.5">
                               <span
-                                className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+                                className={`rounded px-2.5 py-0.5 text-xs font-bold ${
                                   isOnline
                                     ? 'bg-emerald-100 text-emerald-800'
                                     : 'bg-slate-200 text-slate-700'
@@ -943,31 +1066,28 @@ export default function AdminPage() {
 
                             {/* Actions: View, Edit, Delete */}
                             <td className="p-3.5 text-right whitespace-nowrap space-x-1.5">
-                              {/* 1. View Button */}
                               <button
                                 onClick={() => handleOpenViewModal(p)}
-                                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs inline-flex items-center gap-1"
+                                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs inline-flex items-center gap-1"
                                 title="Inspect listing details"
                               >
                                 <Eye className="h-3.5 w-3.5 text-slate-500" />
                                 <span>View</span>
                               </button>
 
-                              {/* 2. Edit Button */}
                               <button
                                 onClick={() => handleOpenEditModal(p)}
-                                className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 transition shadow-2xs inline-flex items-center gap-1"
+                                className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition shadow-2xs inline-flex items-center gap-1"
                                 title="Edit photos, price, specs"
                               >
                                 <Edit className="h-3.5 w-3.5 text-blue-600" />
                                 <span>Edit</span>
                               </button>
 
-                              {/* 3. Delete Button */}
                               <button
                                 onClick={() => handleDeleteProduct(p.id, p.title)}
                                 disabled={actionLoading === `del-prod-${p.id}`}
-                                className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100 transition shadow-2xs inline-flex items-center gap-1"
+                                className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-100 transition shadow-2xs inline-flex items-center gap-1"
                                 title="Permanently delete item"
                               >
                                 <Trash2 className="h-3.5 w-3.5 text-red-600" />
@@ -984,73 +1104,131 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* ================= MERCHANTS TAB ================= */}
+          {/* ================= TAB 2: CLIENT MERCHANTS & INCOME ACTIONS ================= */}
           {activeNav === 'merchants' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-base font-bold text-slate-900">Client Merchants ({sellers.length})</h2>
-                  <p className="text-xs text-slate-500">Manage client physical shops, package renewals, and verification.</p>
+                  <h2 className="text-base font-bold text-slate-900">Client Merchants & Subscriptions</h2>
+                  <p className="text-xs text-slate-500">Collect monthly listing fees and manage shop status.</p>
                 </div>
                 <button
                   onClick={() => setShowAddMerchantModal(true)}
                   className="rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition shadow-2xs"
                 >
-                  + Register Client Merchant
+                  + Register Client Shop
                 </button>
               </div>
 
               <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                 <table className="w-full min-w-[750px] text-left border-collapse text-xs">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/90 text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                      <th className="p-3.5">Merchant / Business</th>
+                    <tr className="border-b border-slate-200 bg-slate-50/90 text-xs font-bold uppercase tracking-wider text-slate-600">
+                      <th className="p-3.5">Merchant / Shop</th>
                       <th className="p-3.5">Phone & WhatsApp</th>
                       <th className="p-3.5">Plan & Expiry</th>
+                      <th className="p-3.5">Total Paid</th>
                       <th className="p-3.5">Status</th>
+                      <th className="p-3.5 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {sellers.map((s) => (
-                      <tr key={s.id} className="hover:bg-slate-50/70 transition">
-                        <td className="p-3.5">
-                          <p className="font-bold text-slate-900">{s.name}</p>
-                          <p className="text-[11px] text-slate-500">{s.location}</p>
-                        </td>
-                        <td className="p-3.5">
-                          <p className="font-mono text-slate-800">{s.phone}</p>
-                          <p className="text-[11px] text-emerald-700 font-semibold">WA: {s.whatsappNumber || s.phone}</p>
-                        </td>
-                        <td className="p-3.5">
-                          <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
-                            {s.packagePlan}
-                          </span>
-                        </td>
-                        <td className="p-3.5">
-                          <span
-                            className={`rounded px-2 py-0.5 text-[10px] font-bold ${
-                              s.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
-                            }`}
-                          >
-                            {s.status.toUpperCase()}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {sellers.map((s) => {
+                      const isSuspended = s.status === 'suspended';
+                      return (
+                        <tr key={s.id} className="hover:bg-slate-50/70 transition">
+                          <td className="p-3.5">
+                            <p className="font-bold text-slate-900">{s.name}</p>
+                            <p className="text-xs text-slate-500">{s.location}</p>
+                          </td>
+                          <td className="p-3.5">
+                            <p className="font-mono text-slate-800">{s.phone}</p>
+                            <a
+                              href={`https://wa.me/${(s.whatsappNumber || s.phone).replace(/[^0-9]/g, '')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-emerald-700 font-semibold hover:underline"
+                            >
+                              WA: {s.whatsappNumber || s.phone}
+                            </a>
+                          </td>
+                          <td className="p-3.5">
+                            <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
+                              {s.packagePlan}
+                            </span>
+                            <div className="text-xs mt-1">
+                              {s.isExpired ? (
+                                <span className="font-bold text-red-600">EXPIRED</span>
+                              ) : (
+                                <span className="text-emerald-700 font-medium">
+                                  {s.daysRemaining} days left
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-3.5 font-bold text-slate-900">
+                            {formatPrice(s.totalListingFeesPaid || 0)}
+                          </td>
+                          <td className="p-3.5">
+                            <span
+                              className={`rounded px-2.5 py-0.5 text-xs font-bold ${
+                                isSuspended ? 'bg-slate-200 text-slate-700' : 'bg-emerald-100 text-emerald-800'
+                              }`}
+                            >
+                              {isSuspended ? 'SUSPENDED' : 'ONLINE'}
+                            </span>
+                          </td>
+                          <td className="p-3.5 text-right whitespace-nowrap space-x-2">
+                            {/* Collect Fee / Renew Modal Button */}
+                            <button
+                              onClick={() => handleOpenCollectFeeModal(s)}
+                              className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700 transition shadow-2xs inline-flex items-center gap-1"
+                            >
+                              <Banknote className="h-3.5 w-3.5" />
+                              <span>Collect Fee</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                const shouldSuspend = s.status === 'active';
+                                if (window.confirm(`${shouldSuspend ? 'Suspend' : 'Reactivate'} "${s.name}"?`)) {
+                                  fetch('/api/sellers', {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      action: 'toggle_suspension',
+                                      sellerId: s.id,
+                                      suspend: shouldSuspend,
+                                    }),
+                                  }).then(() => loadData());
+                                }
+                              }}
+                              className={`rounded-lg px-2.5 py-1 text-xs font-semibold border ${
+                                isSuspended
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                  : 'border-red-200 bg-red-50 text-red-800'
+                              }`}
+                            >
+                              {isSuspended ? 'Activate' : 'Suspend'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
 
-          {/* ================= ORDERS TAB ================= */}
+          {/* ================= TAB 3: CUSTOMER ORDERS ================= */}
           {activeNav === 'orders' && (
             <div className="space-y-4">
               <h2 className="text-base font-bold text-slate-900">Customer Reservations & Inquiries ({orders.length})</h2>
               <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
                 <table className="w-full min-w-[700px] text-left border-collapse text-xs">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/90 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                    <tr className="border-b border-slate-200 bg-slate-50/90 text-xs font-bold uppercase tracking-wider text-slate-600">
                       <th className="p-3.5">Buyer Name</th>
                       <th className="p-3.5">Phone Contact</th>
                       <th className="p-3.5">Location</th>
@@ -1062,7 +1240,7 @@ export default function AdminPage() {
                     {orders.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="p-8 text-center text-slate-400 text-xs">
-                          No pending buyer reservations.
+                          No buyer reservations recorded.
                         </td>
                       </tr>
                     ) : (
@@ -1084,7 +1262,7 @@ export default function AdminPage() {
         </main>
       </div>
 
-      {/* ================= MODAL 1: UPLOAD / EDIT GOODS (PHOTO UPLOADER UP TO 50MB) ================= */}
+      {/* ================= MODAL 1: UPLOAD / EDIT GOODS (50MB DRAG & DROP PHOTO UPLOADER) ================= */}
       {(showUploadModal || showEditModal) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
           <div className="w-full max-w-2xl rounded-2xl bg-white p-6 sm:p-7 shadow-2xl border border-slate-200 my-8">
@@ -1094,7 +1272,7 @@ export default function AdminPage() {
                   {showEditModal ? 'Edit Goods Listing' : 'Upload New Goods for Client'}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Upload photos up to 50MB directly from phone or computer.
+                  Direct photo upload from phone or computer up to 50MB per photo.
                 </p>
               </div>
               <button
@@ -1109,7 +1287,7 @@ export default function AdminPage() {
             </div>
 
             <form onSubmit={handleSaveProduct} className="space-y-4">
-              {/* Client & Title */}
+              {/* Merchant & Title */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -1202,7 +1380,7 @@ export default function AdminPage() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Stops Umeme blackouts. Powers Wi-Fi, 43'' TV, and lights for 14 hours."
+                  placeholder="e.g. Stops Umeme blackouts. Powers Wi-Fi, TV, and lights for 14 hours."
                   value={formProblemSolved}
                   onChange={(e) => setFormProblemSolved(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
@@ -1212,38 +1390,52 @@ export default function AdminPage() {
               {/* Description */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Detailed Description & Warranty
+                  Detailed Specifications & Warranty
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Full specifications, shop warranty terms, and delivery instructions..."
+                  placeholder="Full technical details, shop warranty terms, and pickup address..."
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
                 />
               </div>
 
-              {/* ================= 50MB PHOTO UPLOADER BOX ================= */}
+              {/* ================= 50MB DRAG & DROP PHOTO UPLOADER BOX ================= */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Product Photos (Direct Device Upload, Max 50MB per photo)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Product Photos (Direct Device Upload, Up to 50MB)
+                  </label>
+                  {formImages.length > 0 && (
+                    <span className="text-xs font-bold text-blue-700">
+                      {formImages.length} photo(s) attached
+                    </span>
+                  )}
+                </div>
 
-                {/* Dropzone / Upload Trigger */}
+                {/* Dropzone with Drag & Drop */}
                 <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
-                  className="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/80 p-5 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50/30 transition"
+                  className={`rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition ${
+                    isDraggingOver
+                      ? 'border-blue-600 bg-blue-50/60'
+                      : 'border-slate-300 bg-slate-50/80 hover:border-blue-500 hover:bg-blue-50/20'
+                  }`}
                 >
                   <input
                     type="file"
                     ref={fileInputRef}
-                    onChange={handleFileUpload}
+                    onChange={handleFileInputChange}
                     multiple
                     accept="image/*"
                     className="hidden"
                   />
                   <div className="flex flex-col items-center justify-center">
-                    <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center mb-2">
+                    <div className="h-11 w-11 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center mb-2">
                       {uploadingFiles ? (
                         <Loader2 className="h-5 w-5 animate-spin" />
                       ) : (
@@ -1251,15 +1443,15 @@ export default function AdminPage() {
                       )}
                     </div>
                     <p className="text-xs font-bold text-slate-800">
-                      {uploadingFiles ? 'Uploading images to server...' : 'Click to select photos from phone or computer'}
+                      {uploadingFiles ? uploadProgressText : 'Click to select photos or drag and drop here'}
                     </p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Supports JPG, PNG, WEBP up to <span className="font-bold text-slate-700">50MB</span>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Direct phone gallery / computer file upload (max <strong className="text-slate-800">50MB</strong> per image)
                     </p>
                   </div>
                 </div>
 
-                {/* Uploaded Photos Grid Preview */}
+                {/* Preview Grid */}
                 {formImages.length > 0 && (
                   <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5 mt-3">
                     {formImages.map((img, idx) => (
@@ -1279,7 +1471,7 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* Pin to Top Banner */}
+              {/* Pin to Spotlight Banner */}
               <div className="pt-2">
                 <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
                   <input
@@ -1288,11 +1480,11 @@ export default function AdminPage() {
                     onChange={(e) => setFormIsPinnedTop(e.target.checked)}
                     className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span>Pin to Spotlight Banner (Featured at Top of Home Page)</span>
+                  <span>Pin to Spotlight Banner (Hero Showcase at Top of Public Marketplace)</span>
                 </label>
               </div>
 
-              {/* Submit Buttons */}
+              {/* Form Buttons */}
               <div className="pt-4 border-t border-slate-100 flex justify-end gap-2.5">
                 <button
                   type="button"
@@ -1327,7 +1519,7 @@ export default function AdminPage() {
           <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 my-8">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                <span className="text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
                   {selectedProduct.category}
                 </span>
                 <h3 className="text-base font-bold text-slate-900 mt-1">{selectedProduct.title}</h3>
@@ -1338,7 +1530,7 @@ export default function AdminPage() {
             </div>
 
             <div className="space-y-4">
-              {/* Product Photos Carousel / Gallery */}
+              {/* Photos Gallery */}
               {selectedProduct.images && selectedProduct.images.length > 0 && (
                 <div className="grid grid-cols-3 gap-2">
                   {selectedProduct.images.map((img, idx) => (
@@ -1349,16 +1541,16 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* Pricing & Merchant */}
+              {/* Pricing & Merchant Card */}
               <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
                 <div>
-                  <p className="text-[11px] text-slate-500 font-medium">Selling Price</p>
-                  <p className="text-lg font-bold text-slate-900">{formatPrice(selectedProduct.price)}</p>
+                  <p className="text-xs text-slate-500 font-medium">Selling Price</p>
+                  <p className="text-xl font-bold text-slate-900">{formatPrice(selectedProduct.price)}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] text-slate-500 font-medium">Client Merchant</p>
+                  <p className="text-xs text-slate-500 font-medium">Client Merchant</p>
                   <p className="text-xs font-bold text-slate-900">{selectedProduct.sellerName}</p>
-                  <p className="text-[10px] text-slate-400">{selectedProduct.sellerLocation}</p>
+                  <p className="text-xs text-slate-400">{selectedProduct.sellerLocation}</p>
                 </div>
               </div>
 
@@ -1366,15 +1558,15 @@ export default function AdminPage() {
               {selectedProduct.problemSolved && (
                 <div>
                   <p className="text-xs font-bold text-slate-800">Problem Solved</p>
-                  <p className="text-xs text-slate-600 mt-0.5 leading-relaxed bg-amber-50/60 p-2.5 rounded-lg border border-amber-200/60">
+                  <p className="text-xs text-slate-600 mt-0.5 leading-relaxed bg-amber-50/70 p-2.5 rounded-lg border border-amber-200/70">
                     {selectedProduct.problemSolved}
                   </p>
                 </div>
               )}
 
-              {/* Full Description */}
+              {/* Description */}
               <div>
-                <p className="text-xs font-bold text-slate-800">Description</p>
+                <p className="text-xs font-bold text-slate-800">Full Description</p>
                 <p className="text-xs text-slate-600 mt-0.5 leading-relaxed whitespace-pre-line">
                   {selectedProduct.description}
                 </p>
@@ -1383,13 +1575,13 @@ export default function AdminPage() {
               {/* Metrics */}
               <div className="flex items-center justify-between text-xs pt-3 border-t border-slate-100">
                 <span className="font-semibold text-slate-700">{selectedProduct.viewsCount} Real Views</span>
-                <span className="font-semibold text-emerald-700">{selectedProduct.whatsappClicks} WhatsApp Clicks</span>
-                <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${selectedProduct.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}`}>
+                <span className="font-semibold text-emerald-700">{selectedProduct.whatsappClicks} WhatsApp Leads</span>
+                <span className={`font-bold px-2 py-0.5 rounded text-xs ${selectedProduct.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}`}>
                   {selectedProduct.status.toUpperCase()}
                 </span>
               </div>
 
-              {/* Action Buttons */}
+              {/* Footer Actions */}
               <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
                 <button
                   onClick={() => {
@@ -1428,7 +1620,115 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ================= MODAL 3: REGISTER CLIENT MERCHANT ================= */}
+      {/* ================= MODAL 3: COLLECT LISTING FEE & RENEW (INCOME ENGINE) ================= */}
+      {showCollectFeeModal && selectedSellerForFee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Record Fee & Renew Shop</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Collecting listing revenue for <strong className="text-slate-800">{selectedSellerForFee.name}</strong>
+                </p>
+              </div>
+              <button onClick={() => setShowCollectFeeModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmCollectFee} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Amount Received (UGX) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  value={feeAmount}
+                  onChange={(e) => setFeeAmount(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm font-bold text-slate-900 focus:bg-white focus:border-emerald-600 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Payment Channel
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFeeMethod('mtn_momo')}
+                    className={`rounded-lg p-2 text-xs font-semibold border text-center ${
+                      feeMethod === 'mtn_momo'
+                        ? 'border-yellow-500 bg-yellow-50 text-yellow-900'
+                        : 'border-slate-200 bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    MTN MoMo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFeeMethod('airtel_money')}
+                    className={`rounded-lg p-2 text-xs font-semibold border text-center ${
+                      feeMethod === 'airtel_money'
+                        ? 'border-red-500 bg-red-50 text-red-900'
+                        : 'border-slate-200 bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    Airtel Money
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFeeMethod('cash')}
+                    className={`rounded-lg p-2 text-xs font-semibold border text-center ${
+                      feeMethod === 'cash'
+                        ? 'border-emerald-600 bg-emerald-50 text-emerald-900'
+                        : 'border-slate-200 bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    Cash
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Renewal Period
+                </label>
+                <select
+                  value={feeDurationDays}
+                  onChange={(e) => setFeeDurationDays(Number(e.target.value))}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                >
+                  <option value={30}>30 Days (1 Month)</option>
+                  <option value={60}>60 Days (2 Months)</option>
+                  <option value={90}>90 Days (3 Months)</option>
+                </select>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCollectFeeModal(false)}
+                  className="rounded-lg border border-slate-200 px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading === 'collect-fee'}
+                  className="rounded-lg bg-emerald-700 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800 transition shadow-2xs inline-flex items-center gap-1.5"
+                >
+                  <Check className="h-4 w-4" />
+                  <span>{actionLoading === 'collect-fee' ? 'Processing...' : 'Confirm Payment'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL 4: REGISTER CLIENT MERCHANT ================= */}
       {showAddMerchantModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
