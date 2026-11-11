@@ -147,15 +147,6 @@ export default function HeroShowcase({ products }: HeroShowcaseProps) {
 
         {/* Bottom Interactive Thumbnail Reel */}
         <div className="mt-5 pt-3.5 border-t border-emerald-800/80">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">
-              Spotlight Items (Click to view)
-            </span>
-            <span className="text-xs font-medium text-amber-300">
-              #{activeIndex + 1} of {spotlightItems.length}
-            </span>
-          </div>
-
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-2.5">
             {spotlightItems.map((item, idx) => {
               const isActive = activeIndex === idx;
